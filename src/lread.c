@@ -1322,10 +1322,23 @@ Return t if the file exists and loads successfully.  */)
   specbind (Qlexical_binding, Qnil);
 
   /* Get the name for load-history.  */
+  Lisp_Object found_for_hist;
+  if (is_native_elisp)
+    {
+      /* Reconstruct the .elc filename.  */
+      Lisp_Object src_name = Fgethash (Ffile_name_nondirectory (found),
+				       Vcomp_eln_to_el_h, Qnil);
+      if (suffix_p (src_name, "el.gz"))
+	src_name = Fsubstring (src_name, make_fixnum (0), make_fixnum (-3));
+      found_for_hist = concat2 (src_name, build_string ("c"));
+    }
+  else
+    found_for_hist = found;
+
   hist_file_name = (! NILP (Vpurify_flag)
                     ? concat2 (Ffile_name_directory (file),
-                               Ffile_name_nondirectory (found))
-                    : found) ;
+                               Ffile_name_nondirectory (found_for_hist))
+                    : found_for_hist);
 
   version = -1;
 
@@ -1477,8 +1490,10 @@ Return t if the file exists and loads successfully.  */)
 	 same folder of their respective sources therfore not to break
 	 packages we fake `load-file-name' here.  The non faked
 	 version of it is `load-true-file-name'. */
-      specbind (Qload_file_name, Fgethash (Ffile_name_nondirectory (found),
-					   Vcomp_eln_to_el_h, Qnil));
+      Lisp_Object el_name = Fgethash (Ffile_name_nondirectory (found),
+				      Vcomp_eln_to_el_h, Qnil);
+      specbind (Qload_file_name,
+		NILP (el_name) ? Qnil : concat2 (el_name, build_string ("c")));
     }
   else
     specbind (Qload_file_name, found);
@@ -1502,13 +1517,6 @@ Return t if the file exists and loads successfully.  */)
     {
 #ifdef HAVE_NATIVE_COMP
       specbind (Qcurrent_load_list, Qnil);
-      if (!NILP (Vpurify_flag))
-	{
-	  Lisp_Object base = concat2 (parent_directory (Vinvocation_directory),
-				      build_string ("lisp/"));
-	  Lisp_Object offset = Flength (base);
-	  hist_file_name = Fsubstring (found, offset, Qnil);
-	}
       LOADHIST_ATTACH (hist_file_name);
       Fnative_elisp_load (found, Qnil);
       build_load_history (hist_file_name, true);
@@ -3259,7 +3267,7 @@ read1 (Lisp_Object readcharfun, int *pch, bool first_in_list)
 	  goto retry;
 	}
       if (c == '$')
-	return Vload_true_file_name;
+	return Vload_file_name;
       if (c == '\'')
 	return list2 (Qfunction, read0 (readcharfun));
       /* #:foo is the uninterned symbol named foo.  */
@@ -4060,7 +4068,7 @@ read_list (bool flag, Lisp_Object readcharfun)
       first_in_list = 0;
 
       /* While building, if the list starts with #$, treat it specially.  */
-      if (EQ (elt, Vload_true_file_name)
+      if (EQ (elt, Vload_file_name)
 	  && ! NILP (elt)
 	  && !NILP (Vpurify_flag))
 	{
@@ -4081,7 +4089,7 @@ read_list (bool flag, Lisp_Object readcharfun)
 	      elt = concat2 (dot_dot_lisp, Ffile_name_nondirectory (elt));
 	    }
 	}
-      else if (EQ (elt, Vload_true_file_name)
+      else if (EQ (elt, Vload_file_name)
 	       && ! NILP (elt)
 	       && load_force_doc_strings)
 	doc_reference = 2;
@@ -5037,8 +5045,10 @@ directory.  These file names are converted to absolute at startup.  */);
 
   DEFVAR_LISP ("load-file-name", Vload_file_name,
 	       doc: /* Full name of file being loaded by `load'.
-In case a .eln file is being loaded this is unreliable and `load-true-file-name'
-should be used instead.  */);
+
+In case of native code being loaded this is indicating the
+corresponding bytecode filename.  Use `load-true-file-name' to obtain
+the .eln filename.  */);
   Vload_file_name = Qnil;
 
   DEFVAR_LISP ("load-true-file-name", Vload_true_file_name,
