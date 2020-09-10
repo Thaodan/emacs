@@ -8394,11 +8394,13 @@ gif_load (struct frame *f, struct image *img)
       if (gif == NULL)
 	{
 #if HAVE_GIFERRORSTRING
-	  image_error ("Cannot open `%s': %s",
-		       file, build_string (GifErrorString (gif_err)));
-#else
-	  image_error ("Cannot open `%s'", file);
+	  const char *errstr = GifErrorString (gif_err);
+	  if (errstr)
+	    image_error ("Cannot open `%s': %s", file, build_string (errstr));
+	  else
 #endif
+	  image_error ("Cannot open `%s'", file);
+
 	  return 0;
 	}
     }
@@ -8424,11 +8426,13 @@ gif_load (struct frame *f, struct image *img)
       if (!gif)
 	{
 #if HAVE_GIFERRORSTRING
-	  image_error ("Cannot open memory source `%s': %s",
-		       img->spec, build_string (GifErrorString (gif_err)));
-#else
-	  image_error ("Cannot open memory source `%s'", img->spec);
+	  const char *errstr = GifErrorString (gif_err);
+	  if (errstr)
+	    image_error ("Cannot open memory source `%s': %s",
+			 img->spec, build_string (errstr));
+	  else
 #endif
+	  image_error ("Cannot open memory source `%s'", img->spec);
 	  return 0;
 	}
     }
@@ -8711,9 +8715,9 @@ gif_load (struct frame *f, struct image *img)
       if (error_text)
 	image_error ("Error closing `%s': %s",
 		     img->spec, build_string (error_text));
-#else
-      image_error ("Error closing `%s'", img->spec);
+      else
 #endif
+      image_error ("Error closing `%s'", img->spec);
     }
 
   /* Maybe fill in the background field while we have ximg handy. */

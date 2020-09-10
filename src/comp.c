@@ -4359,10 +4359,7 @@ DEFUN ("comp--compile-ctxt-to-file", Fcomp__compile_ctxt_to_file,
 				   GCC_JIT_OUTPUT_KIND_DYNAMIC_LIBRARY,
 				   SSDATA (tmp_file));
 
-  /* FIXME: this if workaround a cc-bytecomp compilation issue
-     appearing on the Docker build that must be investigated.  */
-  if (NILP (Fsymbol_value(intern_c_string ("byte-native-for-bootstrap"))))
-    CALL1I (comp-clean-up-stale-eln, file_name);
+  CALL1I (comp-clean-up-stale-eln, file_name);
   CALL2I (comp-delete-or-replace-file, file_name, tmp_file);
 
   if (!noninteractive)
@@ -4915,6 +4912,18 @@ DEFUN ("comp--late-register-subr", Fcomp__late_register_subr,
   return Qnil;
 }
 
+static bool
+file_in_eln_sys_dir (Lisp_Object filename)
+{
+  Lisp_Object eln_sys_dir = Qnil;
+  Lisp_Object tmp = Vcomp_eln_load_path;
+  FOR_EACH_TAIL (tmp)
+    eln_sys_dir = XCAR (tmp);
+  return !NILP (Fstring_match (Fregexp_quote (Fexpand_file_name (eln_sys_dir,
+								 Qnil)),
+			       Fexpand_file_name (filename, Qnil), Qnil));
+}
+
 /* Load related routines.  */
 DEFUN ("native-elisp-load", Fnative_elisp_load, Snative_elisp_load, 1, 2, 0,
        doc: /* Load native elisp code FILENAME.
@@ -4927,17 +4936,25 @@ DEFUN ("native-elisp-load", Fnative_elisp_load, Snative_elisp_load, 1, 2, 0,
     xsignal2 (Qnative_lisp_load_failed, build_string ("file does not exists"),
 	      filename);
   struct Lisp_Native_Comp_Unit *comp_u = allocate_native_comp_unit ();
-  if (!NILP (Fgethash (filename, all_loaded_comp_units_h, Qnil)))
+
+  if (!NILP (Fgethash (filename, all_loaded_comp_units_h, Qnil))
+      && !file_in_eln_sys_dir (filename)
+      && !NILP (Ffile_writable_p (filename)))
     {
       /* If in this session there was ever a file loaded with this
 	 name rename before loading it to make sure we always get a
 	 new handle!  */
       Lisp_Object tmp_filename =
-	Fmake_temp_file_internal (filename, make_fixnum (0),
-				  build_string (".eln"), Qnil);
-      Frename_file (filename, tmp_filename, Qnil);
-      comp_u->handle = dynlib_open (SSDATA (tmp_filename));
-      Frename_file (tmp_filename, filename, Qnil);
+	Fmake_temp_file_internal (filename, Qnil, build_string (".eln.tmp"),
+				  Qnil);
+      if (NILP (Ffile_writable_p (tmp_filename)))
+	comp_u->handle = dynlib_open (SSDATA (filename));
+      else
+	{
+	  Frename_file (filename, tmp_filename, Qt);
+	  comp_u->handle = dynlib_open (SSDATA (tmp_filename));
+	  Frename_file (tmp_filename, filename, Qnil);
+	}
     }
   else
     comp_u->handle = dynlib_open (SSDATA (filename));
