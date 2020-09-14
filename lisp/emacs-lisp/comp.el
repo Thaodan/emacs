@@ -810,9 +810,9 @@ Points to the next slot to be filled.")
 
 (defsubst comp-sp ()
   "Current stack pointer."
+  (declare (gv-setter (lambda (val)
+                        `(setf (comp-limplify-sp comp-pass) ,val))))
   (comp-limplify-sp comp-pass))
-(gv-define-setter comp-sp (value)
-  `(setf (comp-limplify-sp comp-pass) ,value))
 
 (defmacro comp-with-sp (sp &rest body)
   "Execute BODY setting the stack pointer to SP.
@@ -2487,20 +2487,20 @@ Prepare every function for final compilation and drive the C back-end."
 
 
 ;;; Compiler type hints.
-;; These are public entry points be used in user code to give comp suggestion
-;; about types.
-;; These can be used to implement CL style 'the', 'declare' or something like.
+;; Public entry points to be used by user code to give comp
+;; suggestions about types.  These are used to implement CL style
+;; `cl-the' and hopefully parameter type declaration.
 ;; Note: types will propagates.
 ;; WARNING: At speed >= 2 type checking is not performed anymore and suggestions
 ;; are assumed just to be true. Use with extreme caution...
 
 (defun comp-hint-fixnum (x)
-  (unless (fixnump x)
-    (signal 'wrong-type-argument x)))
+  (declare (gv-setter (lambda (val) `(setf ,x ,val))))
+  x)
 
 (defun comp-hint-cons (x)
-  (unless (consp x)
-    (signal 'wrong-type-argument x)))
+  (declare (gv-setter (lambda (val) `(setf ,x ,val))))
+  x)
 
 
 ;; Some entry point support code.
@@ -2509,17 +2509,18 @@ Prepare every function for final compilation and drive the C back-end."
 (defun comp-clean-up-stale-eln (file)
   "Given FILE remove all the .eln files in `comp-eln-load-path'
 sharing the original source filename (including FILE)."
-  (string-match (rx "-" (group-n 1 (1+ hex)) "-" (1+ hex) ".eln" eos) file)
-  (cl-loop
-   with filename-hash = (match-string 1 file)
-   with regexp = (rx-to-string
-                  `(seq "-" ,filename-hash "-" (1+ hex) ".eln" eos))
-   for dir in (butlast comp-eln-load-path) ; Skip last dir.
-   do (cl-loop
-       with full-dir = (concat dir comp-native-version-dir)
-       for f in (when (file-exists-p full-dir)
-		  (directory-files full-dir t regexp t))
-       do (comp-delete-or-replace-file f))))
+  (when (string-match (rx "-" (group-n 1 (1+ hex)) "-" (1+ hex) ".eln" eos)
+                      file)
+    (cl-loop
+     with filename-hash = (match-string 1 file)
+     with regexp = (rx-to-string
+                    `(seq "-" ,filename-hash "-" (1+ hex) ".eln" eos))
+     for dir in (butlast comp-eln-load-path) ; Skip last dir.
+     do (cl-loop
+         with full-dir = (concat dir comp-native-version-dir)
+         for f in (when (file-exists-p full-dir)
+		    (directory-files full-dir t regexp t))
+         do (comp-delete-or-replace-file f)))))
 
 (defun comp-delete-or-replace-file (oldfile &optional newfile)
   "Replace OLDFILE with NEWFILE.
