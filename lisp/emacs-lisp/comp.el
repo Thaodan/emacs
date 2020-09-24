@@ -94,17 +94,11 @@ Skip if any is matching."
   :group 'comp)
 
 (defcustom comp-never-optimize-functions
-  '(;; Mandatory for Emacs to be working correctly
-    macroexpand scroll-down scroll-up narrow-to-region widen rename-buffer
-    make-indirect-buffer delete-file top-level abort-recursive-edit
-    ;; For user convenience
-    yes-or-no-p
-    ;; Make the Evil happy :/
-    read-key-sequence select-window set-window-buffer split-window-internal
-    use-global-map use-local-map)
-  "Primitive functions for which we do not perform trampoline optimization.
-This is especially useful for primitives known to be advised or
-redefined when compilation is performed at `comp-speed' > 0."
+  '(;; The following two are mandatory for Emacs to be working
+    ;; correctly (see comment in `advice--add-function'). DO NOT
+    ;; REMOVE.
+    macroexpand rename-buffer)
+  "Primitive functions for which we do not perform trampoline optimization."
   :type 'list
   :group 'comp)
 
@@ -1133,13 +1127,9 @@ When BODY is auto guess function name form the LAP byte-code
 name.  Otherwise expect lname fnname."
     (pcase (car body)
       ('auto
-       (list `(comp-emit-set-call-subr
-               ',(comp-op-to-fun op-name)
-               ,sp-delta)))
+       `((comp-emit-set-call-subr ',(comp-op-to-fun op-name) ,sp-delta)))
       ((pred symbolp)
-       (list `(comp-emit-set-call-subr
-               ',(car body)
-               ,sp-delta)))
+       `((comp-emit-set-call-subr ',(car body) ,sp-delta)))
       (_ body))))
 
 (defmacro comp-op-case (&rest cases)
@@ -2516,12 +2506,14 @@ Prepare every function for final compilation and drive the C back-end."
       (with-temp-file temp-file
         (insert (prin1-to-string expr)))
       (with-temp-buffer
-        (if (zerop
-               (call-process (expand-file-name invocation-name
-                                               invocation-directory)
-                             nil t t "--batch" "-l" temp-file))
-            output
-          (signal 'native-compiler-error (buffer-string)))))))
+        (unwind-protect
+            (if (zerop
+                 (call-process (expand-file-name invocation-name
+                                                 invocation-directory)
+                               nil t t "--batch" "-l" temp-file))
+                output
+              (signal 'native-compiler-error (buffer-string)))
+          (comp-log-to-buffer (buffer-string)))))))
 
 
 ;;; Compiler type hints.
@@ -2539,6 +2531,82 @@ Prepare every function for final compilation and drive the C back-end."
 (defun comp-hint-cons (x)
   (declare (gv-setter (lambda (val) `(setf ,x ,val))))
   x)
+
+
+;; Primitive funciton advice machinery
+
+(defsubst comp-trampoline-sym (subr-name)
+  "Given SUBR-NAME return the trampoline function name."
+  (intern (concat "--subr-trampoline-" (symbol-name subr-name))))
+
+(defsubst comp-trampoline-filename (subr-name)
+  "Given SUBR-NAME return the filename containing the trampoline."
+  (concat (comp-c-func-name subr-name "subr-trampoline-" t) ".eln"))
+
+(defun comp-make-lambda-list-from-subr (subr)
+  "Given SUBR return the equivalent lambda-list."
+  (pcase-let ((`(,min . ,max) (subr-arity subr))
+              (lambda-list '()))
+    (cl-loop repeat min
+             do (push (gensym "arg") lambda-list))
+    (if (numberp max)
+        (cl-loop
+         initially (push '&optional lambda-list)
+         repeat (- max min)
+         do (push (gensym "arg") lambda-list))
+      (push '&rest lambda-list)
+      (push (gensym "arg") lambda-list))
+    (reverse lambda-list)))
+
+(defun comp-search-trampoline (subr-name)
+  "Search a trampoline file for SUBR-NAME.
+Return the its filename if found or nil otherwise."
+  (cl-loop
+   with rel-filename = (comp-trampoline-filename subr-name)
+   for dir in comp-eln-load-path
+   for filename = (expand-file-name rel-filename
+                                    (concat dir comp-native-version-dir))
+   when (file-exists-p filename)
+     do (cl-return filename)))
+
+(defun comp-tampoline-compile (subr-name)
+  "Synthesize and compile a trampoline for SUBR-NAME and return its filename."
+  (let ((trampoline-sym (comp-trampoline-sym subr-name))
+        (lambda-list (comp-make-lambda-list-from-subr
+                      (symbol-function subr-name)))
+        ;; Use speed 0 to maximize compilation speed and not to
+        ;; optimize away funcall calls!
+        (byte-optimize nil)
+        (comp-speed 0))
+    ;; The synthesized trampoline must expose the exact same ABI of
+    ;; the primitive we are replacing in the function reloc table.
+    (defalias trampoline-sym
+      `(closure nil ,lambda-list
+         (let ((f #',subr-name))
+           (,(if (memq '&rest lambda-list) 'apply 'funcall)
+            f
+            ,@(cl-loop
+               for arg in lambda-list
+               unless (memq arg '(&optional &rest))
+                 collect arg)))))
+    (native-compile trampoline-sym nil
+                    (expand-file-name (comp-trampoline-filename subr-name)
+                                      (concat (car comp-eln-load-path)
+                                              comp-native-version-dir)))))
+
+;;;###autoload
+(defun comp-subr-safe-advice (subr-name)
+  "Make SUBR-NAME effectively advice-able when called from native code."
+  (unless (or (memq subr-name comp-never-optimize-functions)
+              (gethash subr-name comp-installed-trampolines-h))
+    (let ((trampoline-sym (comp-trampoline-sym subr-name)))
+      (cl-assert (subr-primitive-p (symbol-function subr-name)))
+      (load (or (comp-search-trampoline subr-name)
+                (comp-tampoline-compile subr-name))
+            nil t)
+      (cl-assert
+       (subr-native-elisp-p (symbol-function trampoline-sym)))
+      (comp--install-trampoline subr-name (symbol-function trampoline-sym)))))
 
 
 ;; Some entry point support code.
@@ -2709,13 +2777,14 @@ display a message."
 ;;; Compiler entry points.
 
 ;;;###autoload
-(defun native-compile (function-or-file &optional with-late-load)
+(defun native-compile (function-or-file &optional with-late-load output)
   "Compile FUNCTION-OR-FILE into native code.
 This is the entry-point for the Emacs Lisp native compiler.
 FUNCTION-OR-FILE is a function symbol or a path to an Elisp file.
-When WITH-LATE-LOAD non Nil mark the compilation unit for late load
+When WITH-LATE-LOAD non-nil mark the compilation unit for late load
 once finished compiling (internal use only).
-Return the compilation unit file name."
+When OUTPUT is non-nil use it as filename for the compiled object.
+Return the compile object filename."
   (comp-ensure-native-compiler)
   (unless (or (functionp function-or-file)
               (stringp function-or-file))
@@ -2727,11 +2796,15 @@ Return the compilation unit file name."
          (byte-compile-debug t)
          (comp-ctxt
           (make-comp-ctxt
-           :output (if (symbolp function-or-file)
-                       (make-temp-file (symbol-name function-or-file) nil ".eln")
-                     (comp-el-to-eln-filename function-or-file
-                                              (when byte-native-for-bootstrap
-                                                (car (last comp-eln-load-path)))))
+           :output (or (when output
+                         (expand-file-name output))
+                       (if (symbolp function-or-file)
+                           (make-temp-file (symbol-name function-or-file) nil
+                                           ".eln")
+                         (comp-el-to-eln-filename
+                          function-or-file
+                          (when byte-native-for-bootstrap
+                            (car (last comp-eln-load-path))))))
            :with-late-load with-late-load)))
     (comp-log "\n\n" 1)
     (condition-case err
