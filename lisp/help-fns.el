@@ -323,17 +323,12 @@ found via `load-path'.  The return value can also be `C-source', which
 means that OBJECT is a function or variable defined in C.  If no
 suitable file is found, return nil."
   (let* ((autoloaded (autoloadp type))
-	 (true-name (or (and autoloaded (nth 1 type))
+	 (file-name (or (and autoloaded (nth 1 type))
 			(symbol-file
                          ;; FIXME: Why do we have this weird "If TYPE is the
                          ;; value returned by `symbol-function' for a function
                          ;; symbol" exception?
-			 object (or (if (symbolp type) type) 'defun))))
-         (file-name (if (and true-name
-                             (string-match "[.]eln\\'" true-name))
-                        (gethash (file-name-nondirectory true-name)
-                                 comp-eln-to-el-h)
-	              true-name)))
+			 object (or (if (symbolp type) type) 'defun)))))
     (cond
      (autoloaded
       ;; An autoloaded function: Locate the file since `symbol-function'
@@ -392,7 +387,7 @@ suitable file is found, return nil."
      ((let ((lib-name
 	     (if (string-match "[.]elc\\'" file-name)
 		 (substring-no-properties file-name 0 -1)
-               file-name)))
+	       file-name)))
 	(or (and (file-readable-p lib-name) lib-name)
 	    ;; The library might be compressed.
 	    (and (file-readable-p (concat lib-name ".gz")) lib-name))))
@@ -627,7 +622,7 @@ FILE is the file where FUNCTION was probably defined."
   ;; of the *packages* in which the function is defined.
   (let* ((name (symbol-name symbol))
          (re (concat "\\_<" (regexp-quote name) "\\_>"))
-         (news (directory-files data-directory t "\\`NEWS\\.[1-9]"))
+         (news (directory-files data-directory t "\\`NEWS\\($\\|\\.\\)"))
          (place nil)
          (first nil))
     (with-temp-buffer
