@@ -139,7 +139,7 @@ and above."
   :group 'comp)
 
 (defvar comp-dry-run nil
-  "When non nil run everything but the C back-end.")
+  "When non-nil run everything but the C back-end.")
 
 (defconst comp-valid-source-re (rx ".el" (? ".gz") eos)
   "Regexp to match filename of valid input source files.")
@@ -271,7 +271,7 @@ This is tipically for top-level forms other than defun.")
   (d-ephemeral (make-comp-data-container) :type comp-data-container
                :documentation "Relocated data not necessary after load.")
   (with-late-load nil :type boolean
-                  :documentation "When non nil support late load."))
+                  :documentation "When non-nil support late load."))
 
 (cl-defstruct comp-args-base
   (min nil :type number
@@ -321,7 +321,7 @@ Is in use to help the SSA rename pass."))
   "A basic block created from lap."
   ;; These two slots are used during limplification.
   (sp nil :type number
-      :documentation "When non nil indicates the sp value while entering
+      :documentation "When non-nil indicates the sp value while entering
 into it.")
   (addr nil :type number
         :documentation "Start block LAP address."))
@@ -407,10 +407,10 @@ structure.")
   (const-vld nil :type boolean
              :documentation "Valid signal for the following slot.")
   (constant nil
-            :documentation "When const-vld non nil this is used for holding
+            :documentation "When const-vld non-nil this is used for holding
  a value known at compile time.")
   (type nil :type symbol
-        :documentation "When non nil indicates the type when known at compile
+        :documentation "When non-nil indicates the type when known at compile
  time."))
 
 ;; Special vars used by some passes
@@ -881,7 +881,7 @@ STACK-OFF is the index of the first slot frame involved."
 
 (defun comp-new-frame (size &optional ssa)
   "Return a clean frame of meta variables of size SIZE.
-If SSA non nil populate it of m-var in ssa form."
+If SSA non-nil populate it of m-var in ssa form."
   (cl-loop with v = (make-vector size nil)
            for i below size
            for mvar = (if ssa
@@ -973,8 +973,9 @@ block.
 If NEGATED non null negate the tested condition.
 Return value is the fall through block name."
   (cl-destructuring-bind (label-num . label-sp) lap-label
-    (let* ((bb (comp-block-name (comp-bb-maybe-add (1+ (comp-limplify-pc comp-pass))
-                                                   (comp-sp)))) ; Fall through block.
+    (let* ((bb (comp-block-name (comp-bb-maybe-add
+                                 (1+ (comp-limplify-pc comp-pass))
+                                 (comp-sp)))) ; Fall through block.
            (target-sp (+ target-offset (comp-sp)))
            (target-addr (comp-label-to-addr label-num))
            (target (comp-bb-maybe-add target-addr target-sp))
@@ -1065,8 +1066,9 @@ Return value is the fall through block name."
         for n from 1
         for last = (= n len)
         for m-test = (make-comp-mvar :constant test)
-        for target-name = (comp-block-name (comp-bb-maybe-add (comp-label-to-addr target-label)
-                                                              (comp-sp)))
+        for target-name = (comp-block-name (comp-bb-maybe-add
+                                            (comp-label-to-addr target-label)
+                                            (comp-sp)))
         for ff-bb = (if last
                         (comp-bb-maybe-add (1+ (comp-limplify-pc comp-pass))
                                            (comp-sp))
@@ -1490,7 +1492,7 @@ These are stored in the reloc data array."
 
 (defun comp-limplify-top-level (for-late-load)
   "Create a limple function to modify the global environment at load.
-When FOR-LATE-LOAD is non nil the emitted function modifies only
+When FOR-LATE-LOAD is non-nil the emitted function modifies only
 function definition.
 
 Synthesize a function called 'top_level_run' that gets one single
@@ -1562,7 +1564,9 @@ into the C code forwarding the compilation unit."
          (let* ((stack-depth (if label-sp
                                  (1- label-sp)
                                (comp-sp)))
-                (next-bb (comp-block-name (comp-bb-maybe-add (comp-limplify-pc comp-pass) stack-depth))))
+                (next-bb (comp-block-name (comp-bb-maybe-add
+                                           (comp-limplify-pc comp-pass)
+                                           stack-depth))))
            (unless (comp-block-closed bb)
              (comp-emit `(jump ,next-bb))))
          (cl-return)))
@@ -1733,14 +1737,17 @@ into the C code forwarding the compilation unit."
                            (list "block does not end with a branch"
                                  bb
                                  (comp-func-name comp-func)))))
-             finally (setf (comp-func-edges comp-func)
-                           (nreverse (comp-func-edges comp-func)))
-                     ;; Update edge refs into blocks.
-                     (cl-loop for edge in (comp-func-edges comp-func)
-                              do (push edge
-                                       (comp-block-out-edges (comp-edge-src edge)))
-                              (push edge
-                                    (comp-block-in-edges (comp-edge-dst edge))))
+             finally
+             (setf (comp-func-edges comp-func)
+                   (nreverse (comp-func-edges comp-func)))
+             ;; Update edge refs into blocks.
+             (cl-loop
+              for edge in (comp-func-edges comp-func)
+              do
+              (push edge
+                    (comp-block-out-edges (comp-edge-src edge)))
+              (push edge
+                    (comp-block-in-edges (comp-edge-dst edge))))
                      (comp-log-edges comp-func))))
 
 (defun comp-collect-rev-post-order (basic-block)
@@ -1876,7 +1883,7 @@ into the C code forwarding the compilation unit."
 
 (defun comp-dom-tree-walker (bb pre-lambda post-lambda)
   "Dominator tree walker function starting from basic block BB.
-PRE-LAMBDA and POST-LAMBDA are called in pre or post-order if non nil."
+PRE-LAMBDA and POST-LAMBDA are called in pre or post-order if non-nil."
   (when pre-lambda
     (funcall pre-lambda bb))
   (when-let ((out-edges (comp-block-out-edges bb)))
@@ -1932,10 +1939,11 @@ PRE-LAMBDA and POST-LAMBDA are called in pre or post-order if non nil."
                     (setf (comp-block-final-frame bb)
                           (copy-sequence in-frame))
                     (when-let ((out-edges (comp-block-out-edges bb)))
-                      (cl-loop for ed in out-edges
-                               for child = (comp-edge-dst ed)
-                               ;; Provide a copy of the same frame to all childs.
-                               do (ssa-rename-rec child (copy-sequence in-frame)))))))
+                      (cl-loop
+                       for ed in out-edges
+                       for child = (comp-edge-dst ed)
+                       ;; Provide a copy of the same frame to all children.
+                       do (ssa-rename-rec child (copy-sequence in-frame)))))))
 
       (ssa-rename-rec (gethash 'entry (comp-func-blocks comp-func))
                       (comp-new-frame frame-size t)))))
@@ -2043,7 +2051,7 @@ Forward propagate immediate involed in assignments."
         (comp-mvar-type lval) (comp-mvar-type rval)))
 
 (defsubst comp-function-optimizable-p (f args)
-  "Given function F called with ARGS return non nil when optimizable."
+  "Given function F called with ARGS return non-nil when optimizable."
   (and (cl-every #'comp-mvar-const-vld args)
        (comp-function-pure-p f)))
 
@@ -2118,7 +2126,8 @@ Return t if something was changed."
   (cl-loop with modified = nil
            for b being each hash-value of (comp-func-blocks comp-func)
            do (cl-loop for insn in (comp-block-insns b)
-                       for orig-insn = (unless modified ; Save consing after 1th change.
+                       for orig-insn = (unless modified
+                                         ;; Save consing after 1th change.
                                          (comp-copy-insn insn))
                        do (comp-fwprop-insn insn)
                        when (and (null modified) (not (equal insn orig-insn)))
@@ -2689,9 +2698,11 @@ processes from `comp-async-compilations'"
                 ;; the number of processors, see get_native_system_info in w32.c.
                 ;; The result needs to be exported to Lisp.
                 (max 1 (/ (cond ((eq 'windows-nt system-type)
-                                 (string-to-number (getenv "NUMBER_OF_PROCESSORS")))
+                                 (string-to-number (getenv
+                                                    "NUMBER_OF_PROCESSORS")))
                                 ((executable-find "nproc")
-                                 (string-to-number (shell-command-to-string "nproc")))
+                                 (string-to-number
+                                  (shell-command-to-string "nproc")))
                                 (t 1))
                           2))))
     comp-async-jobs-number))
@@ -2712,8 +2723,8 @@ display a message."
          when (or comp-always-compile
                   load ; Always compile when the compilation is
                        ; commanded for late load.
-                  (file-newer-than-file-p source-file
-                                          (comp-el-to-eln-filename source-file)))
+                  (file-newer-than-file-p
+                   source-file (comp-el-to-eln-filename source-file)))
          do (let* ((expr `(progn
                             (require 'comp)
                             (setf comp-speed ,comp-speed
@@ -2841,21 +2852,18 @@ Ultra cheap impersonation of `batch-byte-compile'."
 ;;;###autoload
 (defun batch-byte-native-compile-for-bootstrap ()
   "As `batch-byte-compile' but used for booststrap.
-Always generate elc files too and handle native compiler expected errors."
+Generate .elc files in addition to the .eln one.  If the
+environment variable 'NATIVE_DISABLED' is set byte compile only."
   (comp-ensure-native-compiler)
   (if (equal (getenv "NATIVE_DISABLED") "1")
       (batch-byte-compile)
     (cl-assert (= 1 (length command-line-args-left)))
     (let ((byte-native-for-bootstrap t)
           (byte-to-native-output-file nil))
-      (unwind-protect
-          (condition-case _
-              (batch-native-compile)
-            (native-compiler-error-dyn-func)
-            (native-compiler-error-empty-byte))
-        (pcase byte-to-native-output-file
-          (`(,tempfile . ,target-file)
-           (rename-file tempfile target-file t)))))))
+      (batch-native-compile)
+      (pcase byte-to-native-output-file
+        (`(,tempfile . ,target-file)
+         (rename-file tempfile target-file t))))))
 
 ;;;###autoload
 (defun native-compile-async (paths &optional recursively load)
@@ -2874,7 +2882,8 @@ LOAD can be nil t or 'late."
     (dolist (path paths)
       (cond ((file-directory-p path)
              (dolist (file (if recursively
-                               (directory-files-recursively path comp-valid-source-re)
+                               (directory-files-recursively
+                                path comp-valid-source-re)
                              (directory-files path t comp-valid-source-re)))
                (push file files)))
             ((file-exists-p path) (push path files))
