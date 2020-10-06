@@ -4080,8 +4080,22 @@ If BASE-DIR is nil use the first entry in `comp-eln-load-path'.  */)
 		      separator);
   Lisp_Object hash = concat3 (path_hash, separator, content_hash);
   filename = concat3 (filename, hash, build_string (NATIVE_ELISP_SUFFIX));
+
+  /* If base_dir was not specified search inside Vcomp_eln_load_path
+     for the first directory where we have write access.  */
   if (NILP (base_dir))
-    base_dir = XCAR (Vcomp_eln_load_path);
+    {
+      Lisp_Object eln_load_paths = Vcomp_eln_load_path;
+      FOR_EACH_TAIL (eln_load_paths)
+	if (!NILP (Ffile_writable_p (XCAR (eln_load_paths))))
+	  {
+	    base_dir = XCAR (eln_load_paths);
+	    break;
+	  }
+      /* If we can't find it return Nil.  */
+      if (NILP (base_dir))
+	return Qnil;
+    }
 
   if (!file_name_absolute_p (SSDATA (base_dir)))
     base_dir = Fexpand_file_name (base_dir, Vinvocation_directory);
@@ -5141,6 +5155,7 @@ native compiled one.  */);
   DEFSYM (Qlate, "late");
   DEFSYM (Qlambda_fixup, "lambda-fixup");
   DEFSYM (Qgccjit, "gccjit");
+  DEFSYM (Qcomp_subr_trampoline_install, "comp-subr-trampoline-install")
 
   /* To be signaled by the compiler.  */
   DEFSYM (Qnative_compiler_error, "native-compiler-error");
@@ -5245,6 +5260,11 @@ The last directory of this list is assumed to be the system one.  */);
      `invocation-directory' is still unset, will be fixed up during
      dump reload.  */
   Vcomp_eln_load_path = Fcons (build_string ("../native-lisp/"), Qnil);
+
+  DEFVAR_BOOL ("comp-enable-subr-trampolines", comp_enable_subr_trampolines,
+	       doc: /* When non-nil enable trampoline synthesis
+		       triggerd by `fset' making primitives
+		       redefinable effectivelly.  */);
 
   DEFVAR_LISP ("comp-installed-trampolines-h", Vcomp_installed_trampolines_h,
 	       doc: /* Hash table subr-name -> bool.  */);
