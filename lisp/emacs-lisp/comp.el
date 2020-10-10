@@ -2580,7 +2580,7 @@ Return the its filename if found or nil otherwise."
    when (file-exists-p filename)
      do (cl-return filename)))
 
-(defun comp-tampoline-compile (subr-name)
+(defun comp-trampoline-compile (subr-name)
   "Synthesize and compile a trampoline for SUBR-NAME and return its filename."
   (let ((trampoline-sym (comp-trampoline-sym subr-name))
         (lambda-list (comp-make-lambda-list-from-subr
@@ -2603,14 +2603,18 @@ Return the its filename if found or nil otherwise."
     (native-compile
      trampoline-sym nil
      (cl-loop
-      for dir in comp-eln-load-path
+      for load-dir in comp-eln-load-path
+      for dir = (concat load-dir comp-native-version-dir)
       for f = (expand-file-name
                (comp-trampoline-filename subr-name)
-               (concat dir
-                       comp-native-version-dir))
+               dir)
+      unless (file-exists-p dir)
+        do (ignore-errors
+             (make-directory dir t)
+             (cl-return f))
       when (file-writable-p f)
         do (cl-return f)
-      finally (error "Can't find a writable directory in \
+      finally (error "Cannot find suitable directory for output in \
 `comp-eln-load-path'")))))
 
 ;;;###autoload
@@ -2621,7 +2625,7 @@ Return the its filename if found or nil otherwise."
     (let ((trampoline-sym (comp-trampoline-sym subr-name)))
       (cl-assert (subr-primitive-p (symbol-function subr-name)))
       (load (or (comp-search-trampoline subr-name)
-                (comp-tampoline-compile subr-name))
+                (comp-trampoline-compile subr-name))
             nil t)
       (cl-assert
        (subr-native-elisp-p (symbol-function trampoline-sym)))
