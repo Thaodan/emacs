@@ -222,7 +222,7 @@ Useful to hook into pass checkers.")
   "Limple operators use to call subrs.")
 
 (define-error 'native-compiler-error-dyn-func
-  "can't native compile a non lexical scoped function"
+  "can't native compile a non-lexically-scoped function"
   'native-compiler-error)
 (define-error 'native-compiler-error-empty-byte
   "empty byte compiler output"
@@ -336,7 +336,7 @@ into it.")
   (dst nil :type comp-block)
   (number nil :type number
           :documentation "The index number corresponding to this edge in the
- edge vector."))
+ edge hash."))
 
 (defun comp-block-preds (basic-block)
   "Given BASIC-BLOCK return the list of its predecessors."
@@ -355,7 +355,7 @@ into it.")
   (c-name nil :type string
           :documentation "The function name in the native world.")
   (byte-func nil
-             :documentation "Byte compiled version.")
+             :documentation "Byte-compiled version.")
   (doc nil :type string
        :documentation "Doc string.")
   (int-spec nil :type list
@@ -368,12 +368,11 @@ Once in SSA form this *must* be set to 'dirty' every time the topology of the
 CFG is mutated by a pass.")
   (frame-size nil :type number)
   (blocks (make-hash-table) :type hash-table
-          :documentation "Key is the basic block symbol value is a comp-block
-structure.")
+          :documentation "Basic block name -> basic block.")
   (lap-block (make-hash-table :test #'equal) :type hash-table
              :documentation "LAP lable -> LIMPLE basic block name.")
-  (edges () :type list
-         :documentation "List of edges connecting basic blocks.")
+  (edges-h (make-hash-table) :type hash-table
+         :documentation "Hash edge-num -> edge connecting basic two blocks.")
   (block-cnt-gen (funcall #'comp-gen-counter) :type function
                  :documentation "Generates block numbers.")
   (edge-cnt-gen (funcall #'comp-gen-counter) :type function
@@ -388,12 +387,12 @@ structure.")
         :documentation "t if pure nil otherwise."))
 
 (cl-defstruct (comp-func-l (:include comp-func))
-  "Lexical scoped function."
+  "Lexically-scoped function."
   (args nil :type comp-args-base
         :documentation "Argument specification of the function"))
 
 (cl-defstruct (comp-func-d (:include comp-func))
-  "Dynamic scoped function."
+  "Dynamically-scoped function."
   (lambda-list nil :type list
         :documentation "Original lambda-list."))
 
@@ -419,11 +418,11 @@ structure.")
 
 
 (defun comp-ensure-native-compiler ()
-  "Make sure Emacs has native compiler support and libgccjit is laodable.
-Raise and error otherwise.
+  "Make sure Emacs has native compiler support and libgccjit is loadable.
+Raise an error otherwise.
 To be used by all entry points."
   (cond
-   ((null (boundp 'comp-ctxt))
+   ((null (featurep 'nativecomp))
     (error "Emacs not compiled with native compiler support (--with-nativecomp)"))
    ((null (native-comp-available-p))
     (error "Cannot find libgccjit"))))
@@ -445,11 +444,11 @@ To be used by all entry points."
   (comp-call-op-p (car-safe insn)))
 
 (defsubst comp-type-hint-p (func)
-  "Type hint predicate for function name FUNC."
+  "Type-hint predicate for function name FUNC."
   (when (memq func comp-type-hints) t))
 
 (defun comp-func-unique-in-cu-p (func)
-  "Return t if FUNC is know to be unique in the current compilation unit."
+  "Return t if FUNC is known to be unique in the current compilation unit."
   (if (symbolp func)
       (cl-loop with h = (make-hash-table :test #'eq)
                for f being the hash-value in (comp-ctxt-funcs-h comp-ctxt)
@@ -473,8 +472,8 @@ To be used by all entry points."
         (comp-func-pure func))))
 
 (defsubst comp-alloc-class-to-container (alloc-class)
-  "Given ALLOC-CLASS return the data container for the current context.
-Assume allocaiton class 'd-default as default."
+  "Given ALLOC-CLASS, return the data container for the current context.
+Assume allocation class 'd-default as default."
   (cl-struct-slot-value 'comp-ctxt (or alloc-class 'd-default) comp-ctxt))
 
 (defsubst comp-add-const-to-relocs (obj)
@@ -493,14 +492,14 @@ Assume allocaiton class 'd-default as default."
      (1 font-lock-variable-name-face))
     (,(rx (group-n 1 (or "entry"
                          (seq (or "entry_" "entry_fallback_" "bb_")
-                              (1+ num)))))
+                              (1+ num) (? "_latch")))))
      (1 font-lock-constant-face))
     (,(rx "(" (group-n 1 (1+ (or word "-"))))
      (1 font-lock-keyword-face)))
   "Highlights used by comp-limple-mode.")
 
 (define-derived-mode comp-limple-mode fundamental-mode "LIMPLE"
-  "Syntax highlight LIMPLE IR."
+  "Syntax-highlight LIMPLE IR."
   (setf font-lock-defaults '(comp-limple-lock-keywords)))
 
 (cl-defun comp-log (data &optional (level 1))
@@ -556,22 +555,22 @@ VERBOSITY is a number between 0 and 3."
 
 (defun comp-log-edges (func)
   "Log edges in FUNC."
-  (let ((edges (comp-func-edges func)))
+  (let ((edges (comp-func-edges-h func)))
     (comp-log (format "\nEdges in function: %s\n"
                       (comp-func-name func))
               2)
-    (mapc (lambda (e)
-            (comp-log (format "n: %d src: %s dst: %s\n"
-                              (comp-edge-number e)
-                              (comp-block-name (comp-edge-src e))
-                              (comp-block-name (comp-edge-dst e)))
-                      2))
+    (maphash (lambda (_ e)
+               (comp-log (format "n: %d src: %s dst: %s\n"
+                                 (comp-edge-number e)
+                                 (comp-block-name (comp-edge-src e))
+                                 (comp-block-name (comp-edge-dst e)))
+                         2))
           edges)))
 
 
 
 (defmacro comp-loop-insn-in-block (basic-block &rest body)
-  "Loop over all insns in BASIC-BLOCK executning BODY.
+  "Loop over all insns in BASIC-BLOCK executing BODY.
 Inside BODY `insn' can be used to read or set the current
 instruction."
   (declare (debug (form body))
@@ -584,7 +583,7 @@ instruction."
 ;;; spill-lap pass specific code.
 
 (defsubst comp-lex-byte-func-p (f)
-  "Return t if F is a lexical scoped byte compiled function."
+  "Return t if F is a lexically-scoped byte compiled function."
   (and (byte-code-function-p f)
        (fixnump (aref f 0))))
 
@@ -598,11 +597,11 @@ instruction."
   (or (comp-spill-decl-spec function-name 'speed)
       comp-speed))
 
-;; Autoloaded as might by used by `disassemble-internal'.
+;; Autoloaded as might be used by `disassemble-internal'.
 ;;;###autoload
 (defun comp-c-func-name (name prefix &optional first)
-  "Given NAME return a name suitable for the native code.
-Add PREFIX in front of it.  If FIRST is not nil pick the first
+  "Given NAME, return a name suitable for the native code.
+Add PREFIX in front of it.  If FIRST is not nil, pick the first
 available name ignoring compilation context and potential name
 clashes."
   ;; Unfortunatelly not all symbol names are valid as C function names...
@@ -633,7 +632,7 @@ clashes."
       (concat prefix crypted "_" human-readable "_0"))))
 
 (defun comp-decrypt-arg-list (x function-name)
-  "Decript argument list X for FUNCTION-NAME."
+  "Decrypt argument list X for FUNCTION-NAME."
   (unless (fixnump x)
     (signal 'native-compiler-error-dyn-func function-name))
   (let ((rest (not (= (logand x 128) 0)))
@@ -659,10 +658,10 @@ clashes."
     (puthash c-name func (comp-ctxt-funcs-h comp-ctxt))))
 
 (cl-defgeneric comp-spill-lap-function (input)
-  "Byte compile INPUT and spill lap for further stages.")
+  "Byte-compile INPUT and spill lap for further stages.")
 
 (cl-defmethod comp-spill-lap-function ((function-name symbol))
-  "Byte compile FUNCTION-NAME spilling data from the byte compiler."
+  "Byte-compile FUNCTION-NAME spilling data from the byte compiler."
   (let* ((f (symbol-function function-name))
          (c-name (comp-c-func-name function-name "F"))
          (func (make-comp-func-l :name function-name
@@ -697,7 +696,7 @@ clashes."
         (comp-add-func-to-ctxt func))))
 
 (defun comp-intern-func-in-ctxt (_ obj)
-  "Given OBJ of type `byte-to-native-lambda' create a function in `comp-ctxt'."
+  "Given OBJ of type `byte-to-native-lambda', create a function in `comp-ctxt'."
   (when-let ((byte-func (byte-to-native-lambda-byte-func obj)))
     (let* ((lap (byte-to-native-lambda-lap obj))
            (top-l-form (cl-loop
@@ -737,7 +736,7 @@ clashes."
       (comp-log lap 1))))
 
 (cl-defmethod comp-spill-lap-function ((filename string))
-  "Byte compile FILENAME spilling data from the byte compiler."
+  "Byte-compile FILENAME spilling data from the byte compiler."
   (byte-compile-file filename)
   (unless byte-to-native-top-level-forms
     (signal 'native-compiler-error-empty-byte filename))
@@ -760,7 +759,7 @@ clashes."
   (maphash #'comp-intern-func-in-ctxt byte-to-native-lambdas-h))
 
 (defun comp-spill-lap (input)
-  "Byte compile and spill the LAP representation for INPUT.
+  "Byte-compile and spill the LAP representation for INPUT.
 If INPUT is a symbol this is the function-name to be compiled.
 If INPUT is a string this is the file path to be compiled."
   (let ((byte-native-compiling t)
@@ -993,7 +992,7 @@ Return value is the fall through block name."
       bb)))
 
 (defun comp-emit-handler (lap-label handler-type)
-  "Emit a non local exit handler to LAP-LABEL of type HANDLER-TYPE."
+  "Emit a nonlocal-exit handler to LAP-LABEL of type HANDLER-TYPE."
   (cl-destructuring-bind (label-num . label-sp) lap-label
     (cl-assert (= (- label-sp 2) (comp-sp)))
     (setf (comp-func-has-non-local comp-func) t)
@@ -1405,10 +1404,10 @@ the annotation emission."
   func)
 
 (cl-defgeneric comp-prepare-args-for-top-level (function)
-  "Given FUNCTION return the two args arguments for comp--register-...")
+  "Given FUNCTION, return the two args arguments for comp--register-...")
 
 (cl-defmethod comp-prepare-args-for-top-level ((function comp-func-l))
-  "Lexical scoped FUNCTION."
+  "Lexically-scoped FUNCTION."
   (let ((args (comp-func-l-args function)))
     (cons (make-comp-mvar :constant (comp-args-base-min args))
           (make-comp-mvar :constant (if (comp-args-p args)
@@ -1694,7 +1693,7 @@ into the C code forwarding the compilation unit."
 
 (defun comp-clean-ssa (f)
   "Clean-up SSA for funtion F."
-  (setf (comp-func-edges f) ())
+  (setf (comp-func-edges-h f) (make-hash-table))
   (cl-loop
    for b being each hash-value of (comp-func-blocks f)
    do (setf (comp-block-in-edges b) ()
@@ -1710,12 +1709,12 @@ into the C code forwarding the compilation unit."
 
 (defun comp-compute-edges ()
   "Compute the basic block edges for the current function."
-  (cl-flet ((edge-add (&rest args)
-              (push
-               (apply #'make--comp-edge
-                      :number (funcall (comp-func-edge-cnt-gen comp-func))
-                      args)
-               (comp-func-edges comp-func))))
+  (cl-flet ((edge-add (&rest args &aux (n (funcall
+                                           (comp-func-edge-cnt-gen comp-func))))
+                      (puthash
+                       n
+                       (apply #'make--comp-edge :number n args)
+                       (comp-func-edges-h comp-func))))
 
     (cl-loop with blocks = (comp-func-blocks comp-func)
              for bb being each hash-value of blocks
@@ -1739,18 +1738,16 @@ into the C code forwarding the compilation unit."
                            (list "block does not end with a branch"
                                  bb
                                  (comp-func-name comp-func)))))
-             finally
-             (setf (comp-func-edges comp-func)
-                   (nreverse (comp-func-edges comp-func)))
              ;; Update edge refs into blocks.
+             finally
              (cl-loop
-              for edge in (comp-func-edges comp-func)
+              for edge being the hash-value in (comp-func-edges-h comp-func)
               do
               (push edge
                     (comp-block-out-edges (comp-edge-src edge)))
               (push edge
                     (comp-block-in-edges (comp-edge-dst edge))))
-                     (comp-log-edges comp-func))))
+             (comp-log-edges comp-func))))
 
 (defun comp-collect-rev-post-order (basic-block)
   "Walk BASIC-BLOCK children and return their name in reversed post-order."
@@ -1921,7 +1918,7 @@ PRE-LAMBDA and POST-LAMBDA are called in pre or post-order if non-nil."
         (`(fetch-handler . ,_)
          ;; Clobber all no matter what!
          (setf (aref frame slot-n) (make-comp-ssa-mvar :slot slot-n)))
-        (`(phi  ,n)
+        (`(phi ,n)
          (when (equal n slot-n)
            (new-lvalue)))
         (_
@@ -1959,7 +1956,8 @@ PRE-LAMBDA and POST-LAMBDA are called in pre or post-order if non-nil."
                                for e in (comp-block-in-edges b)
                                for b = (comp-edge-src e)
                                for in-frame = (comp-block-final-frame b)
-                               collect (aref in-frame slot-n)))))
+                               collect (cons (aref in-frame slot-n)
+                                             (comp-block-name b))))))
 
     (cl-loop for b being each hash-value of (comp-func-blocks comp-func)
              do (cl-loop for (op . args) in (comp-block-insns b)
@@ -2106,7 +2104,7 @@ Forward propagate immediate involed in assignments."
      (setf (comp-mvar-const-vld lval) t
            (comp-mvar-constant lval) v
            (comp-mvar-type lval) (comp-strict-type-of v)))
-    (`(phi ,lval . ,rest)
+    (`(phi (,lval . _) . ,rest)
      ;; Forward const prop here.
      (when-let* ((vld (cl-every #'comp-mvar-const-vld rest))
                  (consts (mapcar #'comp-mvar-constant rest))

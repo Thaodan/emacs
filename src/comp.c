@@ -4124,7 +4124,7 @@ If BASE-DIR is nil use the first entry in `comp-eln-load-path'.  */)
 	}
       if (NILP (base_dir))
 	error ("Cannot find suitable directory for output in "
-	       "`comp-native-laod-path'.");
+	       "`comp-native-load-path'.");
     }
 
   if (!file_name_absolute_p (SSDATA (base_dir)))
@@ -5300,6 +5300,7 @@ The last directory of this list is assumed to be the system one.  */);
 	       doc: /* Hash table subr-name -> bool.  */);
   Vcomp_installed_trampolines_h = CALLN (Fmake_hash_table);
 
+  Fprovide (intern_c_string ("nativecomp"), Qnil);
 #endif /* #ifdef HAVE_NATIVE_COMP */
 
   defsubr (&Snative_comp_available_p);
