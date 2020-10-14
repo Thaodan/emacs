@@ -662,6 +662,9 @@ clashes."
 
 (cl-defmethod comp-spill-lap-function ((function-name symbol))
   "Byte-compile FUNCTION-NAME spilling data from the byte compiler."
+  (unless (comp-ctxt-output comp-ctxt)
+    (setf (comp-ctxt-output comp-ctxt)
+          (make-temp-file (symbol-name function-name) nil ".eln")))
   (let* ((f (symbol-function function-name))
          (c-name (comp-c-func-name function-name "F"))
          (func (make-comp-func-l :name function-name
@@ -694,6 +697,45 @@ clashes."
         ;; Create the default array.
         (puthash 0 (comp-func-frame-size func) (comp-func-array-h func))
         (comp-add-func-to-ctxt func))))
+
+(cl-defmethod comp-spill-lap-function ((form list))
+  "Byte-compile FORM spilling data from the byte compiler."
+  (unless (eq (car-safe form) 'lambda)
+    (signal 'native-compiler-error
+            "Cannot native compile, form is not a lambda"))
+  (unless (comp-ctxt-output comp-ctxt)
+    (setf (comp-ctxt-output comp-ctxt)
+          (make-temp-file "comp-lambda-" nil ".eln")))
+  (let* ((byte-code (byte-compile form))
+         (c-name (comp-c-func-name "anonymous-lambda" "F"))
+         (func (if (comp-lex-byte-func-p byte-code)
+                   (make-comp-func-l :c-name c-name
+                                     :doc (documentation form t)
+                                     :int-spec (interactive-form form)
+                                     :speed comp-speed)
+                 (make-comp-func-d :c-name c-name
+                                   :doc (documentation form t)
+                                   :int-spec (interactive-form form)
+                                   :speed comp-speed))))
+    (let ((lap (byte-to-native-lambda-lap
+                (gethash (aref byte-code 1)
+                         byte-to-native-lambdas-h))))
+      (cl-assert lap)
+      (comp-log lap 2)
+      (if (comp-func-l-p func)
+          (setf (comp-func-l-args func)
+                (comp-decrypt-arg-list (aref byte-code 0) byte-code))
+        (setf (comp-func-d-lambda-list func) (cadr form)))
+      (setf (comp-func-lap func) lap
+            (comp-func-frame-size func) (comp-byte-frame-size
+                                         byte-code))
+      (setf (comp-func-byte-func func) byte-code
+            (comp-ctxt-top-level-forms comp-ctxt)
+            (list (make-byte-to-native-func-def :name '--anonymous-lambda
+                                                :c-name c-name)))
+      ;; Create the default array.
+      (puthash 0 (comp-func-frame-size func) (comp-func-array-h func))
+      (comp-add-func-to-ctxt func))))
 
 (defun comp-intern-func-in-ctxt (_ obj)
   "Given OBJ of type `byte-to-native-lambda', create a function in `comp-ctxt'."
@@ -740,6 +782,11 @@ clashes."
   (byte-compile-file filename)
   (unless byte-to-native-top-level-forms
     (signal 'native-compiler-error-empty-byte filename))
+  (unless (comp-ctxt-output comp-ctxt)
+    (setf (comp-ctxt-output comp-ctxt) (comp-el-to-eln-filename
+                                        filename
+                                        (when byte-native-for-bootstrap
+                                          (car (last comp-eln-load-path))))))
   (setf (comp-ctxt-top-level-forms comp-ctxt)
         (cl-loop
          for form in (reverse byte-to-native-top-level-forms)
@@ -1433,24 +1480,26 @@ the annotation emission."
          (f (gethash c-name (comp-ctxt-funcs-h comp-ctxt)))
          (args (comp-prepare-args-for-top-level f)))
     (cl-assert (and name f))
-    (comp-emit (comp-call (if for-late-load
-                              'comp--late-register-subr
-                            'comp--register-subr)
-                          (make-comp-mvar :constant name)
-                          (car args)
-                          (cdr args)
-                          (make-comp-mvar :constant c-name)
-                          (make-comp-mvar
-                           :constant
-                           (let* ((h (comp-ctxt-function-docs comp-ctxt))
-                                  (i (hash-table-count h)))
-                             (puthash i (comp-func-doc f) h)
-                             i))
-                          (make-comp-mvar :constant
-                                          (comp-func-int-spec f))
-                          ;; This is the compilation unit it-self passed as
-                          ;; parameter.
-                          (make-comp-mvar :slot 0)))))
+    (comp-emit
+     `(set ,(make-comp-mvar :slot 1)
+           ,(comp-call (if for-late-load
+                           'comp--late-register-subr
+                         'comp--register-subr)
+                       (make-comp-mvar :constant name)
+                       (car args)
+                       (cdr args)
+                       (make-comp-mvar :constant c-name)
+                       (make-comp-mvar
+                        :constant
+                        (let* ((h (comp-ctxt-function-docs comp-ctxt))
+                               (i (hash-table-count h)))
+                          (puthash i (comp-func-doc f) h)
+                          i))
+                       (make-comp-mvar :constant
+                                       (comp-func-int-spec f))
+                       ;; This is the compilation unit it-self passed as
+                       ;; parameter.
+                       (make-comp-mvar :slot 0))))))
 
 (cl-defmethod comp-emit-for-top-level ((form byte-to-native-top-level)
                                        for-late-load)
@@ -1511,7 +1560,12 @@ into the C code forwarding the compilation unit."
                                              "late_top_level_run"
                                            "top_level_run")
                                  :args (make-comp-args :min 1 :max 1)
-                                 :frame-size 1
+                                 ;; Frame is 2 wide: Slot 0 is the
+                                 ;; compilation unit being loaded
+                                 ;; (incoming parameter).  Slot 1 is
+                                 ;; the last function being
+                                 ;; registered.
+                                 :frame-size 2
                                  :speed comp-speed))
          (comp-func func)
          (comp-pass (make-comp-limplify
@@ -1528,7 +1582,7 @@ into the C code forwarding the compilation unit."
              (comp-ctxt-byte-func-to-func-h comp-ctxt))
     (mapc (lambda (x) (comp-emit-for-top-level x for-late-load))
           (comp-ctxt-top-level-forms comp-ctxt))
-    (comp-emit `(return ,(make-comp-mvar :constant t)))
+    (comp-emit `(return ,(make-comp-mvar :slot 1)))
     (puthash 0 (comp-func-frame-size func) (comp-func-array-h func))
     (comp-limplify-finalize-function func)))
 
@@ -2544,13 +2598,9 @@ Prepare every function for final compilation and drive the C back-end."
 
 ;; Primitive funciton advice machinery
 
-(defsubst comp-trampoline-sym (subr-name)
-  "Given SUBR-NAME return the trampoline function name."
-  (intern (concat "--subr-trampoline-" (symbol-name subr-name))))
-
 (defsubst comp-trampoline-filename (subr-name)
   "Given SUBR-NAME return the filename containing the trampoline."
-  (concat (comp-c-func-name subr-name "subr-trampoline-" t) ".eln"))
+  (concat (comp-c-func-name subr-name "subr--trampoline-" t) ".eln"))
 
 (defun comp-make-lambda-list-from-subr (subr)
   "Given SUBR return the equivalent lambda-list."
@@ -2567,39 +2617,38 @@ Prepare every function for final compilation and drive the C back-end."
       (push (gensym "arg") lambda-list))
     (reverse lambda-list)))
 
-(defun comp-search-trampoline (subr-name)
+(defun comp-trampoline-search (subr-name)
   "Search a trampoline file for SUBR-NAME.
-Return the its filename if found or nil otherwise."
+Return the trampoline if found or nil otherwise."
   (cl-loop
    with rel-filename = (comp-trampoline-filename subr-name)
    for dir in comp-eln-load-path
    for filename = (expand-file-name rel-filename
                                     (concat dir comp-native-version-dir))
    when (file-exists-p filename)
-     do (cl-return filename)))
+     do (cl-return (native-elisp-load filename))))
 
 (defun comp-trampoline-compile (subr-name)
-  "Synthesize and compile a trampoline for SUBR-NAME and return its filename."
-  (let ((trampoline-sym (comp-trampoline-sym subr-name))
-        (lambda-list (comp-make-lambda-list-from-subr
-                      (symbol-function subr-name)))
-        ;; Use speed 0 to maximize compilation speed and not to
-        ;; optimize away funcall calls!
-        (byte-optimize nil)
-        (comp-speed 0))
-    ;; The synthesized trampoline must expose the exact same ABI of
-    ;; the primitive we are replacing in the function reloc table.
-    (defalias trampoline-sym
-      `(closure nil ,lambda-list
-                (let ((f #',subr-name))
-                  (,(if (memq '&rest lambda-list) #'apply 'funcall)
-                   f
-                   ,@(cl-loop
-                      for arg in lambda-list
-                      unless (memq arg '(&optional &rest))
-                      collect arg)))))
+  "Synthesize compile and return a trampoline for SUBR-NAME."
+  (let* ((lambda-list (comp-make-lambda-list-from-subr
+                       (symbol-function subr-name)))
+         ;; The synthesized trampoline must expose the exact same ABI of
+         ;; the primitive we are replacing in the function reloc table.
+         (form `(lambda ,lambda-list
+                  (let ((f #',subr-name))
+                    (,(if (memq '&rest lambda-list) #'apply 'funcall)
+                     f
+                     ,@(cl-loop
+                        for arg in lambda-list
+                        unless (memq arg '(&optional &rest))
+                        collect arg)))))
+         ;; Use speed 0 to maximize compilation speed and not to
+         ;; optimize away funcall calls!
+         (byte-optimize nil)
+         (comp-speed 0)
+         (lexical-binding t))
     (native-compile
-     trampoline-sym nil
+     form nil
      (cl-loop
       for load-dir in comp-eln-load-path
       for dir = (concat load-dir comp-native-version-dir)
@@ -2620,14 +2669,13 @@ Return the its filename if found or nil otherwise."
   "Make SUBR-NAME effectively advice-able when called from native code."
   (unless (or (memq subr-name comp-never-optimize-functions)
               (gethash subr-name comp-installed-trampolines-h))
-    (let ((trampoline-sym (comp-trampoline-sym subr-name)))
-      (cl-assert (subr-primitive-p (symbol-function subr-name)))
-      (load (or (comp-search-trampoline subr-name)
-                (comp-trampoline-compile subr-name))
-            nil t)
-      (cl-assert
-       (subr-native-elisp-p (symbol-function trampoline-sym)))
-      (comp--install-trampoline subr-name (symbol-function trampoline-sym)))))
+    (cl-assert (subr-primitive-p (symbol-function subr-name)))
+    (comp--install-trampoline
+     subr-name
+     (or (comp-trampoline-search subr-name)
+         (comp-trampoline-compile subr-name)
+         ;; Should never happen.
+         (cl-assert nil)))))
 
 
 ;; Some entry point support code.
@@ -2800,12 +2848,16 @@ display a message."
 ;;;###autoload
 (defun native-compile (function-or-file &optional with-late-load output)
   "Compile FUNCTION-OR-FILE into native code.
-This is the entry-point for the Emacs Lisp native compiler.
-FUNCTION-OR-FILE is a function symbol or a path to an Elisp file.
-When WITH-LATE-LOAD non-nil mark the compilation unit for late load
-once finished compiling (internal use only).
-When OUTPUT is non-nil use it as filename for the compiled object.
-Return the compile object filename."
+This is the syncronous entry-point for the Emacs Lisp native
+compiler.
+FUNCTION-OR-FILE is a function symbol, a form or the
+filename of an Emacs Lisp source file.
+When WITH-LATE-LOAD non-nil mark the compilation unit for late
+load once finished compiling (internal use only).  When OUTPUT is
+non-nil use it as filename for the compiled object.
+If FUNCTION-OR-FILE is a filename return the filename of the
+compiled object.  If FUNCTION-OR-FILE is a function symbol or a
+form return the compiled function."
   (comp-ensure-native-compiler)
   (unless (or (functionp function-or-file)
               (stringp function-or-file))
@@ -2815,18 +2867,8 @@ Return the compile object filename."
          (comp-native-compiling t)
          ;; Have byte compiler signal an error when compilation fails.
          (byte-compile-debug t)
-         (comp-ctxt
-          (make-comp-ctxt
-           :output (or (when output
-                         (expand-file-name output))
-                       (if (symbolp function-or-file)
-                           (make-temp-file (symbol-name function-or-file) nil
-                                           ".eln")
-                         (comp-el-to-eln-filename
-                          function-or-file
-                          (when byte-native-for-bootstrap
-                            (car (last comp-eln-load-path))))))
-           :with-late-load with-late-load)))
+         (comp-ctxt (make-comp-ctxt :output output
+                                    :with-late-load with-late-load)))
     (comp-log "\n\n" 1)
     (condition-case err
         (mapc (lambda (pass)
@@ -2844,7 +2886,10 @@ Return the compile object filename."
 	 (signal (car err) (if (consp err-val)
 			       (cons function-or-file err-val)
 			     (list function-or-file err-val))))))
-    data))
+    (if (stringp function-or-file)
+        data
+      ;; So we return the compiled function.
+      (native-elisp-load data))))
 
 ;;;###autoload
 (defun batch-native-compile ()

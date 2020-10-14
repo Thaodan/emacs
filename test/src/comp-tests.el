@@ -46,7 +46,7 @@
   "Define a test for the native compiler tagging it as :nativecomp."
   (declare (indent defun)
            (doc-string 3))
-  `(ert-deftest ,(intern (concat "compt-tests-" (symbol-name name))) ,args
+  `(ert-deftest ,(intern (concat "comp-tests-" (symbol-name name))) ,args
      :tags '(:nativecomp)
      ,@docstring-and-body))
 
@@ -359,7 +359,7 @@ Check that the resulting binaries do not differ."
            (interactive)
            3)
         t)
-  (load (native-compile #'comp-tests-free-fun-f))
+  (native-compile #'comp-tests-free-fun-f)
 
   (should (subr-native-elisp-p (symbol-function #'comp-tests-free-fun-f)))
   (should (= (comp-tests-free-fun-f) 3))
@@ -408,6 +408,17 @@ https://lists.gnu.org/archive/html/bug-gnu-emacs/2020-03/msg00914.html."
                'xxx)))
     (should (eq (comp-test-primitive-redefine-f 10 2) 'xxx))
     (should (equal comp-test-primitive-redefine-args '(10 2)))))
+
+(comp-deftest compile-forms ()
+  "Verify lambda form native compilation."
+  (should-error (native-compile '(+ 1 foo)))
+  (let ((f (native-compile '(lambda (x) (1+ x)))))
+    (should (subr-native-elisp-p f))
+    (should (= (funcall f 2) 3)))
+  (let* ((lexical-binding nil)
+         (f (native-compile '(lambda (x) (1+ x)))))
+    (should (subr-native-elisp-p f))
+    (should (= (funcall f 2) 3))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;
@@ -692,7 +703,7 @@ CHECKER should always return nil to have a pass."
                  b
                (comp-tests-tco-f (+ a b) a (- count 1))))
           t)
-    (load (native-compile #'comp-tests-tco-f))
+    (native-compile #'comp-tests-tco-f)
     (should (subr-native-elisp-p (symbol-function #'comp-tests-tco-f)))
     (should (= (comp-tests-tco-f 1 0 10) 55))))
 
@@ -714,7 +725,7 @@ CHECKER should always return nil to have a pass."
 	            (c (concat a b))) ; <= has to optimize
                (length c))) ; <= has to optimize
           t)
-    (load (native-compile #'comp-tests-fw-prop-1-f))
+    (native-compile #'comp-tests-fw-prop-1-f)
     (should (subr-native-elisp-p (symbol-function #'comp-tests-fw-prop-1-f)))
     (should (= (comp-tests-fw-prop-1-f) 6))))
 

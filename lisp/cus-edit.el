@@ -4685,15 +4685,12 @@ This function does not save the buffer."
 	    (setq pos (line-beginning-position))))
 	(goto-char pos)))))
 
-(defvar sort-fold-case) ; defined in sort.el
-
 (defun custom-save-variables ()
   "Save all customized variables in `custom-file'."
   (save-excursion
     (custom-save-delete 'custom-set-variables)
     (let ((standard-output (current-buffer))
-	  (saved-list (make-list 1 0))
-	  sort-fold-case)
+	  (saved-list (make-list 1 0)))
       ;; First create a sorted list of saved variables.
       (mapatoms
        (lambda (symbol)
@@ -4775,8 +4772,7 @@ This function does not save the buffer."
     (custom-save-delete 'custom-reset-faces)
     (custom-save-delete 'custom-set-faces)
     (let ((standard-output (current-buffer))
-	  (saved-list (make-list 1 0))
-	  sort-fold-case)
+	  (saved-list (make-list 1 0)))
       ;; First create a sorted list of saved faces.
       (mapatoms
        (lambda (symbol)
