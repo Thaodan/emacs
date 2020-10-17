@@ -572,9 +572,7 @@ skipped.
 *** New command 'describe-keymap' describes keybindings in a keymap.
 
 ---
-*** New keybinding in 'help-for-help' to display a manual.
-The 'R' keybinding after 'C-h C-h' will prompt for a manual name and
-then display it.
+*** New keybinding 'C-h R' prompts for a manual to display and displays it.
 
 +++
 ** New command 'lossage-size'.
@@ -1162,6 +1160,11 @@ where N are successive numbers above 2.
 This is controlled by the 'search-highlight-submatches' user option.
 This feature is available only on terminals that have enough colors to
 distinguish between sub-expression highlighting.
+
++++
+*** Interactive regular expression replace now uses faces for sub-groups.
+Like 'search-highlight-submatches', this is controlled by the new user option
+'query-replace-highlight-submatches'.
 
 ---
 *** New user option 'reveal-auto-hide'.
