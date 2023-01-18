@@ -364,7 +364,7 @@ install: $(DESTDIR)${archlibdir}
 	$(info $.)
 	$(info Installing utilities for users to run.)
 	umask 022 && ${MKDIR_P} "$(DESTDIR)${bindir}"
-	for file in ${INSTALLABLES} ; do \
+	for file in ${INSTALLABLES} gnuctags ; do \
 	  $(INSTALL_PROGRAM) $(INSTALL_STRIP) $${file} \
 	    "$(DESTDIR)${bindir}"/` \
 	      echo $${file} | sed -e 's/${EXEEXT}$$//' -e '$(TRANSFORM)' \
