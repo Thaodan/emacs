@@ -728,6 +728,7 @@ If you want to change this while speedbar is active, either use
 
     ;; Navigation.
     (define-key map "n" 'speedbar-next)
+    (define-key map [tab] 'speedbar-next)
     (define-key map "p" 'speedbar-prev)
     (define-key map "\M-n" 'speedbar-restricted-next)
     (define-key map "\M-p" 'speedbar-restricted-prev)
