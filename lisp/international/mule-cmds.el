@@ -39,6 +39,7 @@
 
 (defvar mule-keymap
   (let ((map (make-sparse-keymap)))
+    (define-key map "m" 'toggle-enable-multibyte-characters)
     (define-key map "f" 'set-buffer-file-coding-system)
     (define-key map "r" 'revert-buffer-with-coding-system)
     (define-key map "F" 'set-file-name-coding-system)
