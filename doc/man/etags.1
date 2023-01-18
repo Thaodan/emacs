@@ -7,7 +7,7 @@
 ..
 
 .SH NAME
-etags, ctags \- generate tag file for Emacs, vi
+etags, gnuctags \- generate tag file for Emacs, vi
 .SH SYNOPSIS
 .hy 0
 .na
@@ -27,7 +27,7 @@ etags, ctags \- generate tag file for Emacs, vi
 [\|\-\-help\|] [\|\-\-version\|]
 \fIfile\fP .\|.\|.
 
-\fBctags\fP [\|\-aCdgIQRVh\|] [\|\-BtTuvwx\|] [\|\-l \fIlanguage\fP\|]
+\fBgnuctags\fP [\|\-aCdgIQRVh\|] [\|\-BtTuvwx\|] [\|\-l \fIlanguage\fP\|]
 .if n .br
 [\|\-o \fItagfile\fP\|] [\|\-r \fIregexp\fP\|]
 [\|\-\-parse\-stdin=\fIfile\fP\|]
@@ -47,7 +47,7 @@ etags, ctags \- generate tag file for Emacs, vi
 The \|\fBetags\fP\| program is used to create a tag table file, in a format
 understood by
 .BR emacs ( 1 )\c
-\&; the \|\fBctags\fP\| program is used to create a similar table in a
+\&; the \|\fBgnuctags\fP\| program is used to create a similar table in a
 format understood by
 .BR vi ( 1 )\c
 \&.  Both forms of the program understand
@@ -57,7 +57,7 @@ Perl, Ruby, Rust, PHP, PostScript, Python, Prolog, Scheme and most
 assembler\-like syntaxes.
 Both forms read the files specified on the command line, and write a tag
 table (defaults: \fBTAGS\fP for \fBetags\fP, \fBtags\fP for
-\fBctags\fP) in the current working directory.
+\fBgnuctags\fP) in the current working directory.
 Files specified with relative file names will be recorded in the tag
 table with file names relative to the directory where the tag table
 resides.  If the tag table is in /dev or is the standard output,
@@ -73,7 +73,7 @@ parsing of the file names following the switch according to the given
 language, overriding guesses based on filename extensions.
 .SH OPTIONS
 Some options make sense only for the \fBvi\fP style tag files produced
-by ctags;
+by gnuctags;
 \fBetags\fP does not recognize them.
 The programs accept unambiguous abbreviations for long option names.
 .TP
@@ -87,7 +87,7 @@ expression search instructions; the \fB\-B\fP option writes them using
 the delimiter "\|\fB?\fP\|", to search \fIbackwards\fP through files.
 The default is to use the delimiter "\|\fB/\fP\|", to search \fIforwards\fP
 through files.
-Only \fBctags\fP accepts this option.
+Only \fBgnuctags\fP accepts this option.
 .TP
 .B \-\-declarations
 In C and derived languages, create tags for function declarations,
@@ -185,7 +185,7 @@ the previous ones.  The regexps are of one of the forms:
 where \fItagregexp\fP is used to match the tag.  It should not match
 useless characters.  If the match is such that more characters than
 needed are unavoidably matched by \fItagregexp\fP, it may be useful to
-add a \fInameregexp\fP, to narrow down the tag scope.  \fBctags\fP
+add a \fInameregexp\fP, to narrow down the tag scope.  \fBgnuctags\fP
 ignores regexps without a \fInameregexp\fP.  The syntax of regexps is
 the same as in emacs.  The following character escape sequences are
 supported: \\a, \\b, \\d, \\e, \\f, \\n, \\r, \\t, \\v, which
@@ -278,15 +278,15 @@ tag entries for other files in place.  Currently, this is implemented
 by deleting the existing entries for the given files and then
 rewriting the new entries at the end of the tags file.  It is often
 faster to simply rebuild the entire tag file than to use this.
-Only \fBctags\fP accepts this option.
+Only \fBgnuctags\fP accepts this option.
 .TP
 .B \-v, \-\-vgrind
 Instead of generating a tag file, write index (in \fBvgrind\fP format)
-to standard output.  Only \fBctags\fP accepts this option.
+to standard output.  Only \fBgnuctags\fP accepts this option.
 .TP
 .B \-x, \-\-cxref
 Instead of generating a tag file, write a cross reference (in
-\fBcxref\fP format) to standard output.  Only \fBctags\fP accepts this option.
+\fBcxref\fP format) to standard output.  Only \fBgnuctags\fP accepts this option.
 .TP
 .B \-h, \-H, \-\-help
 Print usage information.  Followed by one or more \-\-language=LANG

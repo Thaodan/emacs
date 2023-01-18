@@ -191,13 +191,15 @@ Must be greater than 1."
   :type 'integer)
 
 (defcustom ispell-program-name
-  (or (executable-find "aspell")
-      (executable-find "ispell")
-      (executable-find "hunspell")
-      ;; Enchant is commonly installed as `enchant-2', so use this
-      ;; name and avoid old versions of `enchant'.
-      (executable-find "enchant-2")
-      "ispell")
+  (if (functionp 'append-ispell-dict-alist)
+	"ispell"
+    (or (executable-find "aspell")
+	(executable-find "ispell")
+	(executable-find "hunspell")
+	;; Enchant is commonly installed as `enchant-2', so use this
+	;; name and avoid old versions of `enchant'.
+	(executable-find "enchant-2")
+	"ispell"))
   "Program invoked by \\[ispell-word] and \\[ispell-region] commands."
   :type 'string
   :set (lambda (symbol value)
@@ -1426,6 +1428,78 @@ The variable `ispell-library-directory' defines their location."
 
   ;; Define commands in menu in opposite order you want them to appear.
   (let ((map (make-sparse-keymap "Spell")))
+    ;; Begin adding list for ispell dictonaries installed on SuSE
+    (if (and (functionp 'append-ispell-dict-alist)
+             (symbolp 'ispell-program-name)
+             (string-match "ispell" ispell-program-name))
+	(let ((dicts (reverse (cons (cons "default" nil)
+                                    (append ispell-local-dictionary-alist ispell-dictionary-alist))))
+	      (path (and (boundp 'ispell-library-path) ispell-library-path))
+	      name load-dict)
+	  (dolist (dict dicts)
+	    (setq name (car dict)
+		  load-dict (car (cdr (member "-d" (nth 5 dict)))))
+	    (cond ((not (stringp name))
+		   (define-key map (vector 'default)
+		     (cons "Select Default Dict"
+			   (cons "Dictionary for which Ispell was configured"
+				 (list 'lambda () '(interactive)
+				       (list 'ispell-change-dictionary "default"))))))
+		  ((or (not path)           ; load all if library dir not defined
+		       (file-exists-p (concat path "/" name ".hash"))
+		       (file-exists-p (concat path "/" name ".has"))
+		       (and load-dict
+			    (or (file-exists-p(concat path "/" load-dict ".hash"))
+				(file-exists-p(concat path "/" load-dict ".has")))))
+		   (define-key map (vector (intern name))
+		     (cons (concat "Select " (capitalize name) " Dict")
+			   (list 'lambda () '(interactive)
+				 (list 'ispell-change-dictionary name))))))))
+      (if (and (functionp 'ispell-find-aspell-dictionaries)
+               (symbolp 'ispell-program-name)
+               (string-match "aspell" ispell-program-name))
+          (progn
+            (ispell-find-aspell-dictionaries)
+            (let ((dicts (reverse (cons (cons "default" nil)
+                                        (append ispell-local-dictionary-alist ispell-dictionary-alist))))
+                  name load-dict)
+              (dolist (dict dicts)
+                (setq name (car dict))
+                (cond ((not (stringp name))
+                       (define-key map (vector 'default)
+                         (cons "Select Default Dict"
+                               (cons "Dictionary for which Aspell was configured"
+                                     (list 'lambda () '(interactive)
+                                           (list 'ispell-change-dictionary "default"))))))
+                      ((and (stringp name)
+                            (ispell-aspell-find-dictionary name))
+                       (define-key map (vector (intern name))
+                         (cons (concat "Select " (capitalize name) " Dict")
+                               (list 'lambda () '(interactive)
+                                     (list 'ispell-change-dictionary name)))))))))
+        (if (and (functionp 'ispell-find-hunspell-dictionaries)
+                 (symbolp 'ispell-program-name)
+                 (string-match "hunspell" ispell-program-name))
+            (progn
+              (ispell-find-hunspell-dictionaries)
+              (let ((dicts (reverse (cons (cons "default" nil)
+                                          (append ispell-local-dictionary-alist ispell-hunspell-dictionary-alist))))
+                    name load-dict)
+                (dolist (dict dicts)
+                  (setq name (car dict))
+                  (cond ((not (stringp name))
+                         (define-key map (vector 'default)
+                           (cons "Select Default Dict"
+                                 (cons "Dictionary for which Hunspell was configured"
+                                       (list 'lambda () '(interactive)
+                                             (list 'ispell-change-dictionary "default"))))))
+                        ((stringp name)
+                         (define-key map (vector (intern name))
+                           (cons (concat "Select " (capitalize name) " Dict")
+                                 (list 'lambda () '(interactive)
+                                       (list 'ispell-change-dictionary name)
+                                       )))))))))))
+    ;; End adding list for ispell dictonaries installed on SuSE
     (define-key map [ispell-change-dictionary]
       `(menu-item ,(purecopy "Change Dictionary...") ispell-change-dictionary
 		  :help ,(purecopy "Supply explicit dictionary file name")))

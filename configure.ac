@@ -2853,10 +2853,8 @@ fi
 LD_SWITCH_X_SITE_RPATH=
 if test "${x_libraries}" != NONE; then
   if test -n "${x_libraries}"; then
-    LD_SWITCH_X_SITE=-L`AS_ECHO(["$x_libraries"]) | sed -e 's/:/ -L/g'`
-    LD_SWITCH_X_SITE_RPATH=-Wl,-rpath,`
-      AS_ECHO(["$x_libraries"]) | sed -e 's/:/ -Wl,-rpath,/g'
-    `
+    LD_SWITCH_X_SITE="-L ${x_libraries%%:*}"
+    LD_SWITCH_X_SITE_RPATH="-Wl,-rpath-link,${x_libraries%%:*}"
   fi
   x_default_search_path=""
   x_search_path=${x_libraries}

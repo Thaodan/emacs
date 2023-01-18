@@ -26,6 +26,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 #ifdef MAIL_USE_POP
 
 #include <sys/types.h>
+#include <ctype.h>
 #ifdef WINDOWSNT
 #include "ntlib.h"
 #undef _WIN32_WINNT
