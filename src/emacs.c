@@ -904,11 +904,15 @@ load_pdump (int argc, char **argv, char *dump_file)
     NULL
 #endif
     ;
+#ifdef PDMP_BASE
+  const char *argv0_base = PDMP_BASE
+#else
   const char *argv0_base =
 #ifdef NS_SELF_CONTAINED
     "Emacs"
 #else
     "emacs"
+#endif
 #endif
     ;
 
@@ -1049,7 +1053,11 @@ load_pdump (int argc, char **argv, char *dump_file)
 	  if (IS_DIRECTORY_SEP (*p))
 	    last_sep = p;
 	}
+#ifdef PDMP_BASE
+      argv0_base = PDMP_BASE;
+#else
       argv0_base = last_sep ? last_sep + 1 : argv[0];
+#endif
       ptrdiff_t needed = (strlen (path_exec)
 			  + 1
 			  + strlen (argv0_base)
