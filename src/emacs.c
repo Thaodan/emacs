@@ -920,11 +920,15 @@ load_pdump (int argc, char **argv, char *dump_file)
     NULL
 #endif
     ;
+#ifdef PDMP_BASE
+  const char *argv0_base = PDMP_BASE
+#else
   const char *argv0_base =
 #ifdef NS_SELF_CONTAINED
     "Emacs"
 #else
     "emacs"
+#endif
 #endif
     ;
 
@@ -1008,6 +1012,29 @@ load_pdump (int argc, char **argv, char *dump_file)
   path_exec = w32_relocate (path_exec);
 #elif defined (HAVE_NS)
   path_exec = ns_relocate (path_exec);
+#endif
+
+#ifdef PDMP_BASE
+  if (emacs_executable && *emacs_executable)
+    {
+      needed = (strlen (path_exec)
+	        + 1
+	        + strlen (argv0_base)
+	        + 1
+	        + strlen (suffix)
+	        + 1);
+      if (bufsize < needed)
+	{
+	  xfree (dump_file);
+	  dump_file = xpalloc (NULL, &bufsize, needed - bufsize, -1, 1);
+	}
+      sprintf (dump_file, "%s%c%s%s",
+	       path_exec, DIRECTORY_SEP, argv0_base, suffix);
+      result = pdumper_load (dump_file, emacs_executable);
+
+      if (result == PDUMPER_LOAD_SUCCESS)
+	goto out;
+    }
 #endif
 
   /* Look for "emacs-FINGERPRINT.pdmp" in PATH_EXEC.  We hardcode
