@@ -488,6 +488,17 @@ enum
 
 #define FRAME_PGTK_VIEW(f)         FRAME_GTK_WIDGET (f)
 #define FRAME_X_WINDOW(f)          FRAME_GTK_OUTER_WIDGET (f)
+
+extern Window   gdk_x11_window_get_xid           (GdkWindow   *window);
+
+#define GTK_WIDGET_TO_X_WIN(w) \
+  ((w) && gtk_widget_get_window (w) \
+   ? gdk_x11_window_get_xid (gtk_widget_get_window (w)) : 0)
+
+#define FRAME_OUTER_WINDOW(f)                                   \
+       (FRAME_GTK_OUTER_WIDGET (f) ?                            \
+        GTK_WIDGET_TO_X_WIN (FRAME_GTK_OUTER_WIDGET (f)) : 0)
+
 #define FRAME_NATIVE_WINDOW(f)     GTK_WINDOW (FRAME_X_WINDOW (f))
 #define FRAME_GDK_WINDOW(f)			\
   gtk_widget_get_window (FRAME_GTK_WIDGET (f))
