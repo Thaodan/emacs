@@ -5466,9 +5466,18 @@ gui_report_frame_params (struct frame *f, Lisp_Object *alistptr)
   /* Tooltip frame may not have this widget.  */
   if (FRAME_X_OUTPUT (f)->widget)
 #endif
+#endif
+#if defined(HAVE_X_WINDOWS) || defined(HAVE_PGTK)
+#ifdef HAVE_PGTK
+    if(strcmp(G_OBJECT_TYPE_NAME(FRAME_DISPLAY_INFO(f)->display),
+	       "GdkX11Display") ==0) {
+#endif
     w = WINDOW_HANDLE_UINTPTR (FRAME_OUTER_WINDOW (f));
   store_in_alist (alistptr, Qouter_window_id,
 		  make_formatted_string ("%"PRIuMAX, w));
+#ifdef HAVE_PGTK
+				 }
+#endif
 #endif
   store_in_alist (alistptr, Qicon_name, f->icon_name);
   store_in_alist (alistptr, Qvisibility,
@@ -7247,7 +7256,7 @@ syms_of_frame (void)
   DEFSYM (Quser_position, "user-position");
   DEFSYM (Quser_size, "user-size");
   DEFSYM (Qwindow_id, "window-id");
-#ifdef HAVE_X_WINDOWS
+#if defined(HAVE_X_WINDOWS) || defined (HAVE_PGTK)
   DEFSYM (Qouter_window_id, "outer-window-id");
 #endif
   DEFSYM (Qparent_id, "parent-id");
@@ -7762,7 +7771,7 @@ allow `make-frame' to show the current buffer even if its hidden.  */);
 
   DEFVAR_LISP ("frame-internal-parameters", frame_internal_parameters,
 	       doc: /* Frame parameters specific to every frame.  */);
-#ifdef HAVE_X_WINDOWS
+#if defined(HAVE_X_WINDOWS) || defined(HAVE_PGTK)
   frame_internal_parameters = list4 (Qname, Qparent_id, Qwindow_id, Qouter_window_id);
 #else
   frame_internal_parameters = list3 (Qname, Qparent_id, Qwindow_id);
