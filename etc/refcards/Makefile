@@ -230,12 +230,12 @@ pl-refcard.pdf: $(pl_refcard_deps)
 	  ! pdfmex --version > /dev/null 2> /dev/null; then \
 	  echo "No mex format found."; false; \
 	fi
-	$(ENVADD) pdftex -output-format=pdf pl-refcard.tex
+	$(ENVADD) pdfmex -output-format=pdf pl-refcard.tex
 pl-refcard.dvi: $(pl_refcard_deps)
 	if kpsewhich -format=fmt mex > /dev/null; then \
-	  $(ENVADD) tex pl-refcard.tex; \
-	else \
 	  $(ENVADD) mex pl-refcard.tex; \
+	else \
+	  $(ENVADD) tex pl-refcard.tex; \
 	fi
 pl-refcard.ps: pl-refcard.dvi
 	dvips -t a4 -o $@ pl-refcard.dvi
