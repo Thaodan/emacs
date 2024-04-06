@@ -3390,6 +3390,7 @@ fi
 use_mmap_for_buffers=no
 case "$opsys" in
   mingw32) use_mmap_for_buffers=yes ;;
+  gnu-linux) use_mmap_for_buffers=yes ;;
 esac
 
 AC_FUNC_MMAP
