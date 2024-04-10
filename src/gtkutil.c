@@ -3791,15 +3791,23 @@ xg_update_menu_item (widget_value *val,
 
       wlbl = GTK_LABEL (list->data);
       wkey = GTK_LABEL (list->next->data);
+      /* Make sure we keep a reference to wlbl and wkey since we
+	 use them later down and don't want to be freed even if the corresponding widget
+	 gets destroyed to avoid race conditions, e.g. in case a frame
+	 dies while the menu is still in construction.
+
+	 If we don't GTK will crash in GTK_IS_LABEL aka G_TYPE_CHECK_INSTANCE_TYPE
+	 when we call gtk_label_get_label(label).
+      */
+      g_object_ref (G_OBJECT (wlbl));
+      g_object_ref (G_OBJECT (wkey));
       g_list_free (list);
 
       if (! utf8_key)
         {
           /* Remove the key and keep just the label.  */
-          g_object_ref (G_OBJECT (wlbl));
           gtk_container_remove (GTK_CONTAINER (w), wchild);
           gtk_container_add (GTK_CONTAINER (w), GTK_WIDGET (wlbl));
-          g_object_unref (G_OBJECT (wlbl));
           wkey = 0;
         }
 
@@ -3816,11 +3824,13 @@ xg_update_menu_item (widget_value *val,
 
           wlbl = GTK_LABEL (list->data);
           wkey = GTK_LABEL (list->next->data);
+	  g_object_ref(G_OBJECT (wkey));
           g_list_free (list);
 
           gtk_container_remove (GTK_CONTAINER (w), wchild);
           gtk_container_add (GTK_CONTAINER (w), wtoadd);
         }
+      g_object_ref(G_OBJECT (wlbl));
     }
 
   if (wkey) old_key = gtk_label_get_label (wkey);
@@ -3868,6 +3878,13 @@ xg_update_menu_item (widget_value *val,
           cb_data->select_id = 0;
         }
     }
+
+  /* Check if both objects below still exists or have been freed
+     otherwise before */
+  if (G_IS_OBJECT(wkey))
+    g_object_unref(G_OBJECT(wkey));
+  if (G_IS_OBJECT(wlbl))
+    g_object_unref (G_OBJECT (wlbl));
 
   if (label_changed) /* See comment in xg_update_menubar.  */
     g_object_notify (G_OBJECT (w), "label");
