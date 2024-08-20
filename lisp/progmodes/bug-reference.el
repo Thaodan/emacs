@@ -48,7 +48,7 @@
   "C-c RET"   #'bug-reference-push-button)
 
 ;; E.g., "https://gcc.gnu.org/PR%s"
-(defvar bug-reference-url-format nil
+(defcustom bug-reference-url-format nil
   "Format used to turn a bug number into a URL.
 The bug number is supplied as a string, so this should have a single %s.
 This can also be a function designator; it is called without arguments
@@ -62,7 +62,10 @@ There is no default setting for this, it must be set per file.
 If you set it to a symbol in the file Local Variables section,
 you need to add a `bug-reference-url-format' property to it:
 \(put \\='my-bug-reference-url-format \\='bug-reference-url-format t)
-so that it is considered safe, see `enable-local-variables'.")
+so that it is considered safe, see `enable-local-variables'."
+  :type '(choice (function :tag "Function designator")
+                 (string :tag "URL format string"))
+  :version "31.1")
 
 ;;;###autoload
 (put 'bug-reference-url-format 'safe-local-variable
