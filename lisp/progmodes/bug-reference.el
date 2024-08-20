@@ -140,6 +140,39 @@ accessible via the internet it might also be \"http\"."
   :version "31.1")
 
 
+(defcustom bug-reference-setup-from-mail-alist
+  `((,(regexp-opt '("emacs" "auctex" "gnus" "tramp" "orgmode") 'words)
+     ,(regexp-opt '("@debbugs.gnu.org" "-devel@gnu.org"
+                    ;; List-Id of Gnus devel mailing list.
+                    "ding.gnus.org"))
+     "\\(\\b[Bb]ug ?#?\\([0-9]+\\(?:#[0-9]+\\)?\\)\\)"
+     "https://debbugs.gnu.org/%s"))
+  "An alist for setting up `bug-reference-mode' in mail modes.
+
+This takes action if `bug-reference-mode' is enabled in group and
+message buffers of Emacs mail clients.  Currently, Gnus and Rmail
+are supported.
+
+Each element has the form
+
+  (GROUP-REGEXP HEADER-REGEXP BUG-REGEXP URL-FORMAT)
+
+GROUP-REGEXP is a regexp matched against the current mail folder
+or newsgroup name.  HEADER-REGEXP is a regexp matched against the
+From, To, Cc, Newsgroup, and List-ID header values of the current
+mail or newsgroup message.  If any of those matches, BUG-REGEXP
+is set as `bug-reference-bug-regexp' and URL-FORMAT is set as
+`bug-reference-url-format'.
+
+Note: In Gnus, if a summary buffer has been set up based on
+GROUP-REGEXP, all article buffers opened from there will get the
+same `bug-reference-url-format' and `bug-reference-url-format'."
+  :type '(repeat (group (regexp :tag "Group Regular-expression")
+                        (regexp :tag "Header Regular-expression")
+                        (regexp :tag "Bug Regular-expression")
+                        (string :tag "URL Format")))
+  :version "31.1")
+
 (defun bug-reference-set-overlay-properties ()
   "Set properties of bug reference overlays."
   (put 'bug-reference 'evaporate t)
@@ -420,34 +453,6 @@ applicable."
                 (apply #'bug-reference-maybe-setup-from-vc url config))
               (append bug-reference-setup-from-vc-alist
                       (bug-reference--setup-from-vc-alist)))))
-
-(defvar bug-reference-setup-from-mail-alist
-  `((,(regexp-opt '("emacs" "auctex" "gnus" "tramp" "orgmode") 'words)
-     ,(regexp-opt '("@debbugs.gnu.org" "-devel@gnu.org"
-                    ;; List-Id of Gnus devel mailing list.
-                    "ding.gnus.org"))
-     "\\(\\b[Bb]ug ?#?\\([0-9]+\\(?:#[0-9]+\\)?\\)\\)"
-     "https://debbugs.gnu.org/%s"))
-  "An alist for setting up `bug-reference-mode' in mail modes.
-
-This takes action if `bug-reference-mode' is enabled in group and
-message buffers of Emacs mail clients.  Currently, Gnus and Rmail
-are supported.
-
-Each element has the form
-
-  (GROUP-REGEXP HEADER-REGEXP BUG-REGEXP URL-FORMAT)
-
-GROUP-REGEXP is a regexp matched against the current mail folder
-or newsgroup name.  HEADER-REGEXP is a regexp matched against the
-From, To, Cc, Newsgroup, and List-ID header values of the current
-mail or newsgroup message.  If any of those matches, BUG-REGEXP
-is set as `bug-reference-bug-regexp' and URL-FORMAT is set as
-`bug-reference-url-format'.
-
-Note: In Gnus, if a summary buffer has been set up based on
-GROUP-REGEXP, all article buffers opened from there will get the
-same `bug-reference-url-format' and `bug-reference-url-format'.")
 
 (defvar gnus-newsgroup-name)
 
