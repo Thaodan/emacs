@@ -103,6 +103,43 @@ to the highlighted and clickable region."
 ;;;###autoload
 (put 'bug-reference-bug-regexp 'safe-local-variable 'stringp)
 
+
+(defvar bug-reference-forge-default-alist
+  '(("github.com"       github    "https")
+    ("gitea.com"        gitea     "https")
+    ("codeberg.org"     gitea     "https")
+    ("gitlab.com"       gitlab    "https")
+    ("framagit.org"     gitlab    "https")
+    ("salsa.debian.org" gitlab    "https")
+    ("sr.ht"            sourcehut "https"))
+  "Like `bug-reference-forge-alist' but populated by Emacs and packages.
+
+Emacs and external packages capable of adding additional forges
+should extend this alist rather than `bug-reference-forge-alist'
+which is reserved for the user.")
+
+(defcustom bug-reference-forge-alist nil
+  "An alist of forge instances.
+Each entry has the form (HOST-DOMAIN FORGE-TYPE PROTOCOL).
+HOST-DOMAIN is the host- and domain name, e.g., gitlab.com,
+salsa.debian.org, or sr.ht.
+FORGE-TYPE is the type of the forge, e.g., gitlab, gitea,
+sourcehut, or github.
+PROTOCOL is the protocol for accessing the forge's issue tracker,
+usually \"https\" but for self-hosted forge instances not
+accessible via the internet it might also be \"http\"."
+  :type '(alist :key-type (string :tag "Host-Domain")
+                :value-type (group (choice :tag "Forge-Type"
+                                           (const :tag "Github" github)
+                                           (const :tag "Gitea" gitea)
+                                           (const :tag "Gitlab" gitlab)
+                                           (const :tag "Sourcehut" sourcehut)
+                                           (symbol))
+                                   (choice :tag "Protocol"
+                                           (const "https") (string))))
+  :version "31.1")
+
+
 (defun bug-reference-set-overlay-properties ()
   "Set properties of bug reference overlays."
   (put 'bug-reference 'evaporate t)
@@ -243,24 +280,6 @@ This is like `bug-reference-setup-from-vc-alist' but generated
 from a few default entries, and the value of
 `bug-reference-forge-alist'.")
 
-(defvar bug-reference-forge-alist
-  '(("github.com"       github    "https")
-    ("gitea.com"        gitea     "https")
-    ("codeberg.org"     gitea     "https")
-    ("gitlab.com"       gitlab    "https")
-    ("framagit.org"     gitlab    "https")
-    ("salsa.debian.org" gitlab    "https")
-    ("sr.ht"            sourcehut "https"))
-  "An alist of forge instances.
-Each entry has the form (HOST-DOMAIN FORGE-TYPE PROTOCOL).
-HOST-DOMAIN is the host- and domain name, e.g., gitlab.com,
-salsa.debian.org, or sr.ht.
-FORGE-TYPE is the type of the forge, e.g., gitlab, gitea,
-sourcehut, or github.
-PROTOCOL is the protocol for accessing the forge's issue tracker,
-usually \"https\" but for self-hosted forge instances not
-accessible via the internet it might also be \"http\".")
-
 (cl-defgeneric bug-reference--build-forge-setup-entry
     (host-domain forge-type protocol)
   "Build an entry for `bug-reference--setup-from-vc-alist'.
@@ -368,7 +387,7 @@ generated from `bug-reference-forge-alist'."
             ;; `bug-reference-forge-alist'.
             ,@(mapcar (lambda (entry)
                         (apply #'bug-reference--build-forge-setup-entry entry))
-                      bug-reference-forge-alist)))))
+                      (cl-union bug-reference-forge-default-alist bug-reference-forge-alist))))))
 
 (defvar bug-reference-setup-from-vc-alist nil
   "An alist for setting up `bug-reference-mode' based on VC URL.
