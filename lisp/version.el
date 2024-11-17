@@ -171,14 +171,20 @@ or if we could not determine the revision.")
 		  (looking-at "[[:xdigit:]]\\{40\\}"))
 	   (match-string 0)))))
 
+(defun emacs-repository-version-static (dir)
+  "Return the Emacs repository revision Emacs was built from.
+Value is nil if Emacs was not built from a repository checkout.
+Use information from the `DIR/version' special file."
+  (with-temp-buffer
+    (insert-file-contents (expand-file-name "version" dir))
+    (let ((string (buffer-substring 1 (line-end-position))))
+      (and (not (equal string "Unknown")) string))))
+
 (defun emacs-repository-version-android ()
   "Return the Emacs repository revision Emacs was built from.
 Value is nil if Emacs was not built from a repository checkout.
 Use information from the `/assets/version' special file."
-  (with-temp-buffer
-    (insert-file-contents "/assets/version")
-    (let ((string (buffer-substring 1 (line-end-position))))
-      (and (not (equal string "Unknown")) string))))
+  (emacs-repository-version-static "/assets"))
 
 (defun emacs-repository-get-version (&optional dir _external)
   "Try to return as a string the repository revision of the Emacs sources.
@@ -194,9 +200,13 @@ correspond to the running Emacs.
 
 Optional argument DIR is a directory to use instead of `source-directory'.
 Optional argument EXTERNAL is ignored."
-  (cond ((and (featurep 'android)
-              (eq system-type 'android))
-         (emacs-repository-version-android))
+  (cond ((and (or (and (featurep 'android)
+                       (eq system-type 'android)
+                       (setq dir "/assets"))
+                  (and (not dir)
+                       (file-exists-p (expand-file-name  "version" data-directory))
+                       (setq dir data-directory)))
+              (emacs-repository-version-static dir)))
         (t (emacs-repository-version-git
             (or dir source-directory)))))
 
@@ -209,8 +219,14 @@ or if we could not determine the branch.")
   "Return the Emacs repository branch Emacs was built from.
 Value is nil if Emacs was not built from a repository checkout.
 Use information from the `/assets/version' special file."
+  (emacs-repository-branch-static "/assets"))
+
+(defun emacs-repository-branch-static (dir)
+  "Return the Emacs repository branch Emacs was built from.
+Value is nil if Emacs was not built from a repository checkout.
+Use information from the `DIR/version' special file."
   (with-temp-buffer
-    (insert-file-contents "/assets/version")
+    (insert-file-contents (expand-file-name "version" dir))
     (end-of-line)
     (forward-char)
     (let ((string (buffer-substring (point) (line-end-position))))
@@ -232,8 +248,8 @@ Use information from the `/assets/version' special file."
   "Try to return as a string the repository branch of the Emacs sources.
 The format of the returned string is dependent on the VCS in use.
 
-If Emacs is built for Android, use the version information
-embedded in the Emacs installation package.
+If Emacs is built for Android or contains version file,
+use the version information embedded in the Emacs installation package.
 
 Value is nil if the sources do not seem to be under version
 control, or if we could not determine the branch.  Note that
@@ -241,9 +257,13 @@ this reports on the current state of the sources, which may not
 correspond to the running Emacs.
 
 Optional argument DIR is a directory to use instead of `source-directory'."
-  (cond ((and (featurep 'android)
-              (eq system-type 'android))
-         (emacs-repository-branch-android))
+  (cond ((and (or (and (featurep 'android)
+                       (eq system-type 'android)
+                       (setq dir "/assets"))
+                  (and (not dir)
+                       (file-exists-p (expand-file-name  "version" data-directory))
+                       (setq dir data-directory)))
+              (emacs-repository-branch-static dir)))
         (t (emacs-repository-branch-git
             (or dir source-directory)))))
 

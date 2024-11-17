@@ -446,7 +446,18 @@ etc-emacsver:
 	sed "s/[@]majorversion@/$${majorversion}/" \
 	  ${srcdir}/etc/refcards/emacsver.tex.in > emacsver.tex.$$$$ && \
 	  ${srcdir}/build-aux/move-if-change emacsver.tex.$$$$ \
-	  ${srcdir}/etc/refcards/emacsver.tex
+	  ${srcdir}/etc/refcards/emacsver.tex; \
+	  if [ -e $(srcdir)/.git ]  && \
+	  which git > /dev/null ; then \
+	  { (cd $(srcdir) \
+	     && git rev-parse HEAD || echo "Unknown") \
+	     && (git rev-parse --abbrev-ref HEAD \
+	         || echo "Unknown") } 2> /dev/null > \
+	     ${top_builddir}/etc/version.$$$$; \
+	     ${srcdir}/build-aux/move-if-change \
+		${top_builddir}/etc/version.$$$$ \
+		${top_builddir}/etc/version; \
+          else : ;fi
 
 # The shared gamedir name as a C string literal, or a null ptr if not in use.
 PATH_GAME = $(if $(use_gamedir),"$(gamedir)",((char const *) 0))
