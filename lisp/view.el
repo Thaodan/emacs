@@ -416,7 +416,7 @@ p	searches backward for last regular expression.
 The effect of \\[View-leave], \\[View-quit] and \\[View-kill-and-leave] depends on how view-mode was entered.  If it was
 entered by view-file, view-file-other-window, view-file-other-frame, or
 \\[dired-view-file] \(\\[view-file], \\[view-file-other-window],
-\\[view-file-other-frame], or the Dired mode v command),
+\\[view-file-other-frame], `view-read-only' on a read-only file, or the Dired mode v command),
 then \\[View-quit] will try to kill the current buffer.
 If view-mode was entered from another buffer, by \\[view-buffer],
 \\[view-buffer-other-window], \\[view-buffer-other frame], \\[view-file],

@@ -2874,7 +2874,7 @@ unless NOMODES is non-nil."
     (when (and buffer-read-only
 	       view-read-only
 	       (not (eq (get major-mode 'mode-class) 'special)))
-      (view-mode-enter))
+      (view-mode-enter nil 'kill-buffer-if-not-modified))
     (run-hooks 'find-file-hook)))
 
 (define-obsolete-function-alias 'report-errors 'with-demoted-errors "25.1")
