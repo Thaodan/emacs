@@ -258,15 +258,21 @@ If nil, never start checking buffer automatically like this."
 (define-obsolete-variable-alias 'flymake-start-syntax-check-on-find-file
   'flymake-start-on-flymake-mode "26.1")
 
-(defcustom flymake-start-on-flymake-mode t
+(defcustom flymake-start-on-flymake-mode nil
   "If non-nil, start syntax check when `flymake-mode' is enabled.
-Specifically, start it when the buffer is actually displayed."
+Specifically, start it when the buffer is actually displayed.
+Warning: if enabled and with elisp-mode the triggered code completion on
+untrusted Emacs Lisp source code allows attackers to execute arbitrary code.
+More information at https://www.cve.org/CVERecord?id=CVE-2024-53920"
   :version "26.1"
   :type 'boolean)
 
-(defcustom flymake-start-on-save-buffer t
+(defcustom flymake-start-on-save-buffer nil
   "If non-nil, start syntax check when a buffer is saved.
-Specifically, start it when the saved buffer is actually displayed."
+Specifically, start it when the saved buffer is actually displayed.
+Warning: if enabled and with elisp-mode the triggered code completion on
+untrusted Emacs Lisp source code allows attackers to execute arbitrary code.
+More information at https://www.cve.org/CVERecord?id=CVE-2024-53920"
   :version "27.1"
   :type 'boolean)
 
