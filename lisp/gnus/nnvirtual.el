@@ -293,6 +293,13 @@ It is computed from the marks of individual component groups.")
     (nnvirtual-update-read-and-marked t t))
   t)
 
+(deffoo nnvirtual-request-list (&optional server)
+  (when (nnvirtual-possibly-change-server server)
+    (with-current-buffer nntp-server-buffer
+      (erase-buffer)
+      (dolist (group nnvirtual-component-groups)
+        (insert (format "%S 0  1 y\n" group))))
+    t))
 
 (deffoo nnvirtual-request-newgroups (_date &optional _server)
   (nnheader-report 'nnvirtual "NEWGROUPS is not supported."))
