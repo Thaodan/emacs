@@ -795,6 +795,9 @@ the files in ARTLIST by that search key.")
 (defclass gnus-search-nnselect (gnus-search-engine)
   nil)
 
+(defclass gnus-search-nnvirtual (gnus-search-engine)
+  nil)
+
 (defclass gnus-search-imap (gnus-search-engine)
   ((literal-plus
     :initarg :literal-plus
@@ -953,14 +956,16 @@ quirks.")
   'gnus-search-default-engines "28.1")
 
 (defcustom gnus-search-default-engines '((nnimap . gnus-search-imap)
-                                         (nnselect . gnus-search-nnselect))
+                                         (nnselect . gnus-search-nnselect)
+                                         (nnvirtual . gnus-search-nnvirtual))
   "Alist of default search engines keyed by server method."
-  :version "26.1"
+  :version "31.1"
   :type `(repeat (cons (choice (const nnimap) (const nntp) (const nnspool)
 			       (const nneething) (const nndir) (const nnmbox)
 			       (const nnml) (const nnmh) (const nndraft)
 			       (const nnfolder) (const nnmaildir)
-                               (const nnselect))
+                               (const nnselect)
+                               (const nnvirtual))
 		       (choice
 			,@(mapcar
 			   (lambda (el) (list 'const (intern (car el))))
@@ -1086,6 +1091,23 @@ Responsible for handling and, or, and parenthetical expressions.")
                                (cons 'search-group-spec group-spec))))))))
     artlist))
 
+;; nnvirtual interface
+(cl-defmethod gnus-search-run-search ((_engine gnus-search-nnvirtual)
+                               srv query-spec _groups)
+  ;; fixme groups vs srv which of?
+  ;; in theory the function could get multiple groups of one server
+  ;; but for nnvirtual server = group
+  (save-excursion
+    (let* (;; Not really a server but the matching groups for the nnvirtual group
+          (grouplist (mapcar #'gnus-group-short-name (gnus-search-get-active srv)))
+          ;; group each group as list containing each server and their groups
+          (group-spec (nnselect-categorize grouplist (lambda (x) (gnus-group-server x))))
+          (artlist []))
+      (setq artlist (vconcat artlist
+                             (gnus-search-run-query
+                              (list (cons 'search-query-spec query-spec)
+                                    (cons 'search-group-spec group-spec)))))
+      artlist)))
 
 ;; imap interface
 (cl-defmethod gnus-search-run-search ((engine gnus-search-imap)
@@ -2152,6 +2174,7 @@ remaining string, then adds all that to the top-level spec."
 	    ('namazu 'gnus-search-namazu)
 	    ('find-grep 'gnus-search-find-grep)
 	    ('imap 'gnus-search-imap)
+            ('nnvirtual 'gnus-search-nnvirtual)
 	    (_ server))
 	  inst
 	  (cond
