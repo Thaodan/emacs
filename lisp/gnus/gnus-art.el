@@ -1113,7 +1113,10 @@ parts.  When nil, redisplay article."
 
 (defvar gnus-article-treat-head-custom
   '(choice (const :tag "Off" nil)
-	   (const :tag "Header" head)))
+	   (const :tag "Header" head)
+           (const :tag "First" first)
+           (const :tag "Last" last)
+           (boolean :tag "All body parts" t)))
 
 (defvar gnus-article-treat-types '("text/plain" "text/x-verbatim"
 				   "text/x-patch" "text/html")
