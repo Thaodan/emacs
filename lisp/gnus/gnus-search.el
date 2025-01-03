@@ -2205,6 +2205,24 @@ remaining string, then adds all that to the top-level spec."
 
 (declare-function gnus-registry-get-id-key "gnus-registry" (id key))
 
+(defun gnus-refer-thread-maybe-add-current-group (group)
+  "Return `gnus-refer-thread-use-search' with `current' replaced by GROUP.
+Return nil if `current' was not found or if was not a list."
+  (cond ((eq 'current gnus-refer-thread-use-search)
+         (list (gnus-info-method (gnus-get-info group))
+               group))
+        ((listp gnus-refer-thread-use-search)
+         (let (out)
+           (dolist (search gnus-refer-thread-use-search)
+             (push (if (and (not (listp search)) (eq 'current search))
+                       (list (gnus-info-method (gnus-get-info group))
+                             group)
+                     search)
+                   out))
+           out))
+        (t
+         nil)))
+
 (defun gnus-search-thread (header &optional group server)
   "Find articles in the thread containing HEADER from GROUP on SERVER.
 If `gnus-refer-thread-use-search' is nil only the current group is
@@ -2226,7 +2244,8 @@ ephemeral nnselect buffer."
                             " or "))
            (cons 'thread t)))
          (gnus-search-use-parsed-queries t))
-    (if (not gnus-refer-thread-use-search)
+    (if (or (not gnus-refer-thread-use-search)
+            (eq 'current gnus-refer-thread-use-search))
         ;; Search only the current group and send the headers back to
         ;; the caller to add to the summary buffer.
         (gnus-fetch-headers
@@ -2246,8 +2265,8 @@ ephemeral nnselect buffer."
             (thread  (gnus-search-run-query
                       (list (cons 'search-query-spec query)
                             (cons 'search-group-spec
-                                  (if (listp gnus-refer-thread-use-search)
-                                      gnus-refer-thread-use-search
+                                  (or (gnus-refer-thread-maybe-add-current-group
+                                       group)
                                     (list (list server))))))))
         (if (< (nnselect-artlist-length thread) 2)
             (message "No other articles in thread")
