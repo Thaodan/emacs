@@ -49,6 +49,7 @@
 (require 'gnus-art)
 (autoload 'gnus-search-run-query "gnus-search")
 (autoload 'gnus-search-server-to-engine "gnus-search")
+(autoload 'gnus-refer-thread-maybe-add-current-group "gnus-search")
 
 (eval-when-compile (require 'cl-lib))
 
@@ -706,8 +707,7 @@ group info."
                  (group-spec
                   (if (not gnus-refer-thread-use-search)
                       (list (list server artgroup))
-                    (if (listp gnus-refer-thread-use-search)
-                        gnus-refer-thread-use-search
+                    (or (gnus-refer-thread-maybe-add-current-group group)
                       (list (list server)))))
                  (ids (cons (mail-header-id header)
                             (split-string

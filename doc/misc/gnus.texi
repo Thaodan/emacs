@@ -10557,12 +10557,23 @@ normally, but it'll make this command work a whole lot faster.  Of
 course, it'll make group entry somewhat slow.
 
 @vindex gnus-refer-thread-use-search
-If @code{gnus-refer-thread-use-search} is @code{nil} (the default)
-then thread-referral only looks for articles in the current group.  If
-this variable is @code{t} the server to which the current group
-belongs is searched (provided that searching is available for the
-server's backend).  If this variable is a list of servers, each server
-in the list is searched.
+If @code{gnus-refer-thread-use-search} is @code{current} or @code{nil}
+(the default), then thread-referral only looks for articles
+in the current group.
+
+If this variable is @code{t}, the server to which the current group
+belongs is searched.  Note this is only possible provided that
+searching is available for the server's backend.
+
+The value can also be a list of the form
+@code{(@var{server} @var{group}@dots{})}, where @var{server} is the
+server and @var{group}s are the groups belonging to the server.
+
+To search in the current group in addition to other groups,
+the list of servers may contain the symbol @code{current}.
+If @code{current} is not in the list, the current group is not searched.
+Note this may be not the desired effect if any of articles referred in
+the thread are not contained in any of the searched groups.
 
 @vindex gnus-refer-thread-limit
 The @code{gnus-refer-thread-limit} variable says how many old (i.e.,

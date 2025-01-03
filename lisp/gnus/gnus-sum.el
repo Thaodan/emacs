@@ -149,11 +149,20 @@ current group; a value of t searches all groups on the server; a
 list of servers and groups (where each element is a list whose
 car is the server and whose cdr is a list of groups on this
 server or nil to search the entire server) searches these
-server/groups.  This may usefully be set as a group parameter."
-  :version "28.1"
+server/groups.
+
+The list of of server and groups may contain
+the symbol `current' to refer to the current group.
+For example, to search in the current group in addition to other groups.
+
+This may usefully be set as a group parameter."
+  :version "31.1"
   :group 'gnus-thread
-  :type '(restricted-sexp :match-alternatives
-                          (listp 't 'nil)))
+  :type '(choice (const :tag "Current group" nil)
+                 (const :tag "All groups" t)
+                 (repeat :tag "Server and groups"
+                         (choice (const :tag "Current Group" current)
+                                 (repeat :tag "Server and groups" string)))))
 
 (defcustom gnus-refer-thread-limit-to-thread nil
   "If non-nil referring a thread will limit the summary buffer to
