@@ -4483,7 +4483,8 @@ If FORK is non-nil, it is passed to `Info-goto-node'."
 (defun Info-copy-current-node-name (&optional arg)
   "Put the name of the current Info node into the kill ring.
 The name of the Info file is prepended to the node name in parentheses.
-With a zero prefix arg, put the name inside a function call to `info'."
+With a zero prefix ARG, put the name inside a function call to `info'.
+If ARG is 4 put link to Info node from `Info-url-alist.' into the kill ring."
   (interactive "P" Info-mode)
   (unless Info-current-node
     (user-error "No current Info node"))
@@ -4494,6 +4495,22 @@ With a zero prefix arg, put the name inside a function call to `info'."
 			  Info-current-node))))
     (if (zerop (prefix-numeric-value arg))
         (setq node (concat "(info \"" node "\")")))
+    (if (equal (prefix-numeric-value arg) 4)
+        (let (filename)
+          (string-match "\\s *\\((\\s *\\([^\t)]*\\)\\s *)\\s *\\|\\)\\(.*\\)"
+		        node)
+          (setq filename (if (= (match-beginning 1) (match-end 1))
+		             ""
+		           (match-string 2 node))
+	        node (match-string 3 node))
+          (let ((trim (string-match "\\s +\\'" filename)))
+            (if trim (setq filename (substring filename 0 trim))))
+          (let ((trim (string-match "\\s +\\'" node)))
+            (if trim (setq node (substring node 0 trim))))
+          (if (equal filename "")
+              (setq filename (file-name-sans-extension (file-name-nondirectory
+                                                        Info-current-file))))
+          (setq node (Info-url-for-node (format "(%s)%s" filename node)))))
     (unless (stringp Info-current-file)
       (setq node (format "(Info-find-node '%S '%S)"
 			 Info-current-file Info-current-node)))
