@@ -69,6 +69,12 @@ to the user."
   :type 'boolean
   :version "24.1")
 
+(defcustom Info-copy-current-node-name-always-info nil
+  "If non-nil always put node name inside a function to call info.
+This also reverse the zero prefix arg in `info-copy-current-node-name'."
+  :type 'boolean
+  :version "31.1")
+
 (defvar Info-enable-active-nodes nil
   "Non-nil allows Info to execute Lisp code associated with nodes.
 The Lisp code is executed when the node is selected.")
@@ -4464,7 +4470,8 @@ If FORK is non-nil, it is passed to `Info-goto-node'."
 (defun Info-copy-current-node-name (&optional arg)
   "Put the name of the current Info node into the kill ring.
 The name of the Info file is prepended to the node name in parentheses.
-With a zero prefix ARG, put the name inside a function call to `info'.
+With a zero prefix ARG, put the name inside a function call to `info';
+If `Info-copy-current-node-name-always-info' is t the meaning is reversed.
 If ARG is 4 put link to Info node from `Info-url-alist.' into the kill ring."
   (interactive "P" Info-mode)
   (unless Info-current-node
@@ -4474,8 +4481,11 @@ If ARG is 4 put link to Info node from `Info-url-alist.' into the kill ring."
 			       (file-name-nondirectory Info-current-file))
 			  ") "
 			  Info-current-node))))
-    (if (or (zerop (prefix-numeric-value arg))
-            (equal (prefix-numeric-value arg) 4))
+    (if (or (and (not Info-copy-current-node-name-always-info)
+                 (zerop (prefix-numeric-value arg)))
+            (equal (prefix-numeric-value arg) 4)
+            (and Info-copy-current-node-name-always-info
+                 (not (zerop (prefix-numeric-value arg)))))
         (setq node (concat "(info \"" node "\")")))
     (if (equal (prefix-numeric-value arg) 4)
         (let (filename)
