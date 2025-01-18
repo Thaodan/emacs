@@ -228,7 +228,8 @@ These directories are searched after those in `Info-directory-list'."
   :type '(repeat directory))
 
 (defcustom Info-url-alist
-  '((("auth" "autotype" "bovine" "calc" "ccmode" "cl" "dbus" "dired-x"
+  '((;; Emacs specific manuals
+     ("auth" "autotype" "bovine" "calc" "ccmode" "cl" "dbus" "dired-x"
       "ebrowse" "ede" "ediff" "edt" "efaq" "efaq-w32" "eglot" "eieio"
       "eintr" "elisp" "emacs" "emacs-gnutls" "emacs-mime" "epa" "erc"
       "ert" "eshell" "eudc" "eww" "flymake" "forms" "gnus"
@@ -238,7 +239,209 @@ These directories are searched after those in `Info-directory-list'."
       "semantic" "ses" "sieve" "smtpmail" "speedbar" "srecode"
       "todo-mode" "tramp" "transient" "url" "use-package" "vhdl-mode"
       "viper" "vtable" "widget" "wisent" "woman") .
-     "https://www.gnu.org/software/emacs/manual/html_node/%m/%e"))
+     "https://www.gnu.org/software/emacs/manual/html_node/%m/%e")
+    ;; GNU software where each has one manual
+    ((;; Archiving
+      "cpio" "gzip" "sharutils" "tar"
+      ;; Audio
+      "ccd2cue" "gmediaserver" "guile-sdl"
+      ;; Business and productivity
+      "gcal" "libextractor" "gdbm"
+      ;; Database
+      "recutils" "sqltutor"
+      ;; Education
+      "mdk"
+      ;; Fonts
+      "fontopia"
+      ;; Games
+      "acm" "chess" "gnubik" "gnushogi" "liquidwar6" "motti" "xboard"
+      ;; Graphics
+      "guile-opengl"
+      ;; Interface
+      "g-golf" "gnuit" "guile-ncurses" "remotecontrol"
+      ;; Internet applications
+      "alive" "artanis" "inetutils" "librejs" "proxyknife"
+      "websocket4j" "wget"
+      ;; Localization
+      "gettext"
+      ;; Mathematics
+      "aris" "datamash" "mpria" "pspp"
+      ;; Printing
+      "a2ps" "gv"
+      ;; Science
+      "gama" "gnuastro" "libredwg" "units"
+      ;; Security
+      "gnu-pw-mgr" "libtasn1" "radius"
+      ;; Software development
+      "autoconf" "autogen" "automake" "bash" "bison" "cflow" "complexity"
+      "coreutils" "findutils" "c-intro-and-ref" "gnulib" "gperf" "guile"
+      "guile-rpc" "idutils" "make" "diffutils" "rush" "screen"
+      "smalltalk" "teseq"
+      ;; Software libraries
+      "8sync" "gsasl" "guile-cv" "glibc" "libidn" "libmicrohttpd"
+      "libtool" "libunistring" "lightning"
+      ;; System administration
+      "acct" "grub" "gsrc" "mcron" "mes" "parted" "serveez"
+      "shepherd" "stow"
+      ;; Text creation and manipulation
+      "auctex" "combine" "diffutils" "gawk" "grep" "m4"
+      "orgadoc" "sed" "wdiff"
+      ;; Version control
+      "rcs" "vc-dwim"
+      ;; Web authoring
+      "emacs-muse") .
+      "https://www.gnu.org/software/%m/manual/html_node/%e")
+    ;; GNU software manuals where the path doesn't contain html_node
+    (( ;; Security
+      "gnu-crypto"
+      ;; Software development
+      "autoconf-archive" "dejagnu" "indent"
+      ;; Version control
+      "cssc") .
+      "https://www.gnu.org/software/%m/manual/%e")
+    ;; GNU software manuals where manuals in other languages than
+    ;; English exists
+    (("fisicalab"
+      ;; Graphics
+      "plotutils") .
+      "https://www.gnu.org/software/%m/manual/en/%m/%e")
+    ;; Various misc documentation for coding standards and maintainer
+    ;; manuals
+    (("standards" "maintain" ) .
+     "https://www.gnu.org/prep/%m/html_node/%e")
+    ;; GNU software where the exact address differs to the other above
+    ;; e.g. because the websites are hosted on a different server
+    (("mailutils" ) . "https://mailutils.org/manual/html_node/%e")
+    (;; Mathematics
+     ("gmplib") . "https://gmplib.org/manual/%e")
+    (("jacal") . "https://people.csail.mit.edu/jaffer/jacal/%e")
+    (("octave") . "https://docs.octave.org/latest/%e")
+    ((;; Dictionaries
+      "dico"
+      ;; Software development
+      "pies"
+      ;; System administration
+      "direvent") .
+      "https://www.gnu.org.ua/software/%m/manual/%e")
+    ;; GnuDOS
+    (("gnudos" "mino" "prime") .
+     "https://www.gnu.org/software/gnudos/%m/html_node/%e")
+    ;; Security
+    (;; Manuals hosted on gnupg.org
+     ("asuan" "dirmngr" "gcrypt" "gnupg" "gpgme" "ksba") .
+     "https://www.gnupg.org/documentation/manuals/%m/%e")
+    ;; Software development
+    (;; Manuals hosted on sourceware.org
+     ;; binutils
+     ("as" "bfd" "binutils" "gprof" "grofng" "ld") .
+     "https://sourceware.org/binutils/docs/%m/%e")
+    ;; gdb
+    (("gdb" "stabs") .
+     "https://sourceware.org/gdb/current/onlinedocs/%m/%e")
+    (;; GCC and related
+     ("cpp" "cppinternals" "gcc" "gccint" "gfc-internals" "gfortran"
+      "gnat-style" "gnat_rm" "gnat_ugn" "libgomp" "liberty"
+      "libstdc++") .
+     "https://gcc.gnu.org/onlinedoc/%m/%e")
+    ;; GForth
+    (("gforth") .
+     "https://www.complang.tuwien.ac.at/forth/gforth/Docs-html/%e")
+    (;; MIT/GNU Scheme
+     ("mit-scheme-imail" "mit-scheme-ref" "mit-scheme-sos"
+      "mit-scheme-user") .
+     "https://www.gnu.org/software/mit-scheme/documentation/stable/%m/%e")
+    (("groff") . "https://www.gnu.org/software/groff/manual/groff.html.node/%e")
+    (("reftex") . "https://www.gnu.org/software/auctex/manual/reftex/%e")
+    ((;; Manuals hosted at Jaffer
+      "scm" "slib" "wb") .
+      "https://people.csail.mit.edu/jaffer/%m/%e")
+    (;; GNU Pascal
+     ("gpc") . "https://www.gnu-pascal.de/%m/%e")
+    ;; Software libraries
+    (("libavl") . "https://adtinfo.org/libavl.html/%e")
+    (("gnutls") . "https://www.gnutls.org/manual/html_node/%e")
+    (("guixwl") . "https://guixwl.org/manual/html_node/%e")
+    ;; Specific cases where the manual is only provided online
+    ;; in a single package document with various paths.
+    (("emms") .
+     (lambda (manual-name node-name _url-encoded-node-name)
+       ;; One page manual index#<node-name>
+       (format "https://www.gnu.org/software/%s/manual/index#%s"
+               manual-name (string-replace "\s" "-" node-name))))
+    ((;; Editors
+      "moe"
+      ;; System administration
+      "ddrescue"
+      ;; Text creation and manipulation
+      "ed" "ocrad") .
+      (lambda (manual-name node-name _url-encoded-node-name)
+        ;; One page manual index#<node-name>
+        (format "https://www.gnu.org/software/%s/manual/%m_manual.html#%s"
+                manual-name (string-replace "\s" "-" node-name))))
+    ((;; Audio
+      "libcdio"
+      ;; Games
+      "gnubg"
+      ;; Internet applications
+      "shishi"
+      ;; Mathematics
+      "mcsim"
+      ;; Software development
+      "gengen" "gengetopt" "global"
+      ;; Software libraries
+      "libjit"
+      ;; Web authoring
+      "easejs") .
+      (lambda (manual-name node-name _url-encoded-node-name)
+        ;; One page manual manual#<node-name>
+        (format "https://www.gnu.org/software/%s/%s.html#%s"
+                manual-name manual-name (string-replace "\s" "-"
+                                                        node-name))))
+    (;; System administration
+     ("mtools" "rottlog") .
+     (lambda (manual-name node-name _url-encoded-node-name)
+       ;; One page manual manual#<node-name>
+       (format "https://www.gnu.org/software/%s/manual/%s.html#%s"
+               manual-name manual-name (string-replace "\s" "-"
+                                                       node-name))))
+    ((;; Software development
+      "ddd") .
+      (lambda (manual-name node-name _url-encoded-node-name)
+        ;; One page manual manual#<node-name>
+        (format "https://www.gnu.org/software/%s/manual/html_mono/%s.html#%s"
+                manual-name manual-name (string-replace "\s" "-"
+                                                        node-name))))
+    (("hyperbole") .
+     (lambda (manual-name node-name _url-encoded-node-name)
+       ;; One page manual manual#<node-name>
+       (format "https://www.gnu.org/software/%s/man/%s.html#%s"
+               manual-name manual-name (string-replace "\s" "-"
+                                                       node-name))))
+    (("mpfr") .
+     (lambda (manual-name node-name _url-encoded-node-name)
+       ;; One page manual manual#<node-name>
+       (format "https://www.mpfr.org/mpfr-current/mpfr.html#%s"
+               (string-replace "\s" "-" node-name))))
+    (("R-intro" "R-data" "R-admin" "R-ext" "R-lang" "R-ints") .
+     (lambda (manual-name node-name _url-encoded-node-name)
+       ;; One page manual manual#<node-name>
+       (format
+        "https://cran.r-project.org/doc/manuals/r-release/%s.html#%s"
+        manual-name (string-replace "\s" "-" node-name))))
+    ;; Software libraries
+    (("libidn2") .
+     (lambda (_manual-name node-name _url-encoded-node-name)
+       ;; One page manual manual#<node-name>
+       (format
+        "https://libidn.gitlab.io/libidn2/manual/libidn2.html#%s"
+        (string-replace "\s" "-" node-name))))
+    ;; Editors
+    (("readline") .
+     (lambda (manual-name node-name _url-encoded-node-name)
+       ;; One page manual manual#<node-name>
+       (format "https://tiswww.cwru.edu/php/chet/%s/%s.html#%s"
+               manual-name manual-name (string-replace "\s" "-"
+                                                       node-name)))))
   "Alist telling `Info-mode' where manuals are accessible online.
 
 Each element of this list has the form (MANUALs . URL-SPEC).
@@ -259,21 +462,21 @@ This variable particularly affects the command
 
 The default value of this variable refers to the official,
 HTTPS-accessible HTML-representations of all manuals that Emacs
-includes.  These URLs refer to the most recently released version
-of Emacs, disregarding the version of the running Emacs.  In
-other words, the content of your local Info node and the
+includes and some additional GNU manuals that maybe installed on your computer.
+These URLs refer to the most recently released version of the software.
+In other words, the content of your local Info node and the
 associated online node may differ.  The resource represented by
 the generated URL may even be not found by the gnu.org server."
-  :version "30.1"
+  :version "31.1"
   :type '(alist
-           :tag "Mapping from manual-name(s) to URL-specification"
-           :key-type (choice
-                       (string :tag "A single manual-name")
-                       (repeat :tag "List of manual-names" string))
-           :value-type (choice
-                         (string :tag "URL-specification string")
-                         (function
-                           :tag "URL-specification function"))))
+          :tag "Mapping from manual-name(s) to URL-specification"
+          :key-type (choice
+                     (string :tag "A single manual-name")
+                     (repeat :tag "List of manual-names" string))
+          :value-type (choice
+                       (string :tag "URL-specification string")
+                       (function
+                        :tag "URL-specification function"))))
 
 (defcustom Info-scroll-prefer-subnodes nil
   "If non-nil, \\<Info-mode-map>\\[Info-scroll-up] in a menu visits subnodes.
