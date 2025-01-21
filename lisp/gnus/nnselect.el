@@ -474,7 +474,8 @@ group info."
 		      (list
 		       (gnus-method-to-server
 			(gnus-find-method-for-group
-			 (nnselect-article-group x))))
+			 (nnselect-article-group x)))
+                       (nnselect-article-group x))
 		      servers :test 'equal)))
 		 (gnus-articles-in-thread thread)))))
 	(setq servers (list (list server))))
