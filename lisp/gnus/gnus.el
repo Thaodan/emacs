@@ -3264,6 +3264,8 @@ that that variable is buffer-local to the summary buffers."
 	      (cdr (assoc server gnus-server-alist))
 	      ;; It could be in the predefined server alist.
 	      (cdr (assoc server gnus-predefined-server-alist))
+	      ;; Is it a nnselect-ephemeral server?
+	      (and (equal server "nnselect-ephemeral") 'nnselect)
 	      ;; If not, we look through all the opened server
 	      ;; to see whether we can find it there.
 	      (let ((opened gnus-opened-servers))
