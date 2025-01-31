@@ -338,7 +338,13 @@ Used to bracket operations which move point in the sieve-buffer."
 
 ;;;###autoload
 (defun sieve-manage (server &optional port)
-  (interactive "sServer: ")
+  "Open ManageSieve SERVER.
+Optionally with PORT.
+
+When called in interactively prompt for SERVER:PORT
+if :PORT is not specified fallback to `sieve-manage-default-port'."
+  (interactive
+   (split-string (read-string "Server: ") ":"))
   (switch-to-buffer (get-buffer-create sieve-buffer))
   (sieve-manage-mode)
   (sieve-setup-buffer server port)
