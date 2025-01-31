@@ -111,6 +111,7 @@ require \"fileinto\";
   ;; various
   "?"      #'sieve-help
   "h"      #'sieve-help
+  "g"      #'sieve-refresh-scriptlist
   ;; activating
   "m"      #'sieve-activate
   "u"      #'sieve-deactivate
