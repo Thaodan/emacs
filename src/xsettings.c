@@ -21,6 +21,7 @@ along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.  */
 
 #include <float.h>
 #include <limits.h>
+#include <math.h>
 #include <fcntl.h>
 
 #include <byteswap.h>
@@ -839,7 +840,11 @@ apply_xft_settings (Display_Info *dpyinfo,
 #endif
   FcPatternGetInteger (pat, FC_LCD_FILTER, 0, &oldsettings.lcdfilter);
   FcPatternGetInteger (pat, FC_RGBA, 0, &oldsettings.rgba);
-  FcPatternGetDouble (pat, FC_DPI, 0, &oldsettings.dpi);
+
+  if (FcPatternGetDouble (pat, FC_DPI, 0, &oldsettings.dpi) == FcResultMatch)
+    {
+      oldsettings.dpi = round(oldsettings.dpi);
+    }
 
   if ((settings->seen & SEEN_AA) != 0 && oldsettings.aa != settings->aa)
     {

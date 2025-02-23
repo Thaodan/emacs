@@ -33,6 +33,7 @@
 ;;; Customizable variables
 
 (declare-function font-get-system-font "xsettings.c" ())
+(declare-function font-face-attributes "font.c" (font &optional frame))
 (declare-function reconsider-frame-font "frame.c" ())
 
 (defvar font-use-system-font)
@@ -43,15 +44,18 @@ If DISPLAY-OR-FRAME is a frame, the display is the one for that frame.
 
 If SET-FONT is non-nil, change the font for frames.  Otherwise re-apply
 the current form for the frame (i.e. hinting or somesuch changed)."
-  (let ((new-font (and (fboundp 'font-get-system-font)
+  (let ((system-font (and (fboundp 'font-get-system-font)
 		       (font-get-system-font)))
-	(frame-list (frames-on-display-list display-or-frame)))
-    (when (and new-font (display-graphic-p display-or-frame))
+	(frame-list (frames-on-display-list display-or-frame))
+	(user-font (face-attribute 'default :font)))
+    (when (and system-font (display-graphic-p display-or-frame))
       (clear-font-cache)
       (if set-font
 	  ;; Set the font on all current and future frames, as though
 	  ;; the `default' face had been "set for this session":
-	  (set-frame-font new-font nil frame-list)
+	  (if (not user-font)
+		(set-frame-font system-font nil frame-list)
+	     (set-frame-font user-font nil frame-list))
 	;; Just reconsider the existing fonts on all frames on each
 	;; display, by clearing the font and face caches.  This will
 	;; cause all fonts to be recreated.
