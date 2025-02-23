@@ -2117,23 +2117,20 @@ XlwMenuInitialize (Widget request, Widget w, ArgList args, Cardinal *num_args)
     = XCreatePixmapFromBitmapData (display, window, gray_bits,
 				   gray_width, gray_height,
 				   (unsigned long)1, (unsigned long)0, 1);
+  mw->menu.font = XLoadQueryFont (display, mw->menu.fontName);
 
 #if defined USE_CAIRO || defined HAVE_XFT
-  if (openXftFont (mw))
+  if (mw->menu.font || openXftFont (mw))
     ;
   else
 #endif
     {
-      mw->menu.font = XLoadQueryFont (display, mw->menu.fontName);
+      mw->menu.font = XLoadQueryFont (display, "fixed");
       if (!mw->menu.font)
-        {
-          mw->menu.font = XLoadQueryFont (display, "fixed");
-          if (!mw->menu.font)
-            {
-              fprintf (stderr, "Menu font fixed not found, can't continue.\n");
-              emacs_abort ();
-            }
-        }
+	{
+	  fprintf (stderr, "Menu font fixed not found, can't continue.\n");
+	  emacs_abort ();
+	}
     }
 
 #ifdef HAVE_X_I18N
