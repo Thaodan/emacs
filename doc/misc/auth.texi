@@ -248,7 +248,7 @@ For url-auth authentication (HTTP/HTTPS), you need to put this in your
 netrc file:
 
 @example
-machine yourmachine.com:80 port http login testuser password testpass
+machine yourmachine.com port http login testuser password testpass
 @end example
 
 This will match any realm and authentication method (basic or digest)
