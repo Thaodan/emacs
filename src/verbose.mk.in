@@ -26,6 +26,7 @@ AM_V_CC =
 AM_V_CXX =
 AM_V_CCLD =
 AM_V_CXXLD =
+AM_V_MOC =
 AM_V_ELC =
 AM_V_ELN =
 AM_V_GEN =
@@ -60,6 +61,7 @@ AM_V_CC      = @$(info $.  CC       $@)
 AM_V_CXX     = @$(info $.  CXX      $@)
 AM_V_CCLD    = @$(info $.  CCLD     $@)
 AM_V_CXXLD   = @$(info $.  CXXLD    $@)
+AM_V_MOC     = @$(info $.  MOC      $@)
 
 ifeq ($(HAVE_NATIVE_COMP)-$(NATIVE_DISABLED)-$(ANCIENT),yes--)
 ifneq (,$(have_working_info))

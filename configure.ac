@@ -572,6 +572,7 @@ AC_ARG_WITH([ns],[AS_HELP_STRING([--with-ns],
 On by default on macOS.])],[],[with_ns=maybe])
 OPTION_DEFAULT_OFF([w32], [use native MS Windows GUI in a Cygwin build])
 OPTION_DEFAULT_OFF([pgtk], [use GTK to support window systems other than X])
+OPTION_DEFAULT_OFF([qt], [use Qt to support any window system Qt supports])
 
 OPTION_DEFAULT_ON([gpm],[don't use -lgpm for mouse support on a GNU/Linux console])
 OPTION_DEFAULT_IFAVAILABLE([dbus],[compile with D-Bus support])
@@ -2676,9 +2677,13 @@ if test "${with_pgtk}" = "yes"; then
   window_system=pgtk
 fi
 
+if test "${with_qt}" = "yes" ; then
+   window_system=qt
+fi
+
 if test "${ANDROID}" != "yes"; then
   AC_PATH_X
-  if test "$no_x" != yes && test "${with_pgtk}" != "yes"; then
+  if test "$no_x" != yes && test "${with_pgtk}" != "yes" && test "${with_qt}" != "yes"; then
     window_system=x11
   fi
 fi
@@ -3175,6 +3180,13 @@ dnl use the toolkit if we have gtk, or X11R5 or newer.
     HAVE_PGTK=yes
     AC_DEFINE([HAVE_PGTK], [1], [Define to 1 if you have pure Gtk+-3.])
   ;;
+  qt)
+     term_header=qtterm.h
+     with_qt=yes
+     USE_X_TOOLKIT=none
+     HAVE_QT=yes
+     AC_DEFINE([HAVE_QT], [1], [Define to 1 if you have Qt])
+  ;;
   haiku )
     term_header=haikuterm.h
   ;;
@@ -3540,6 +3552,8 @@ HAVE_RSVG=no
 if test "${HAVE_X11}" = "yes" || test "${HAVE_NS}" = "yes" \
    || test "${opsys}" = "mingw32" || test "${HAVE_BE_APP}" = "yes" \
    || test "${window_system}" = "pgtk" \
+   dnl Check if Qt image plugins could be used
+   || test "${window_system}" = "qt" \
    || test "${REALLY_ANDROID}" = "yes"; then
   if test "${with_rsvg}" != "no"; then
     RSVG_REQUIRED=2.14.0
@@ -3666,6 +3680,7 @@ AC_SUBST([SQLITE3_CFLAGS])
 HAVE_IMAGEMAGICK=no
 if test "${HAVE_X11}" = "yes" || test "${HAVE_NS}" = "yes" || test "${HAVE_W32}" = "yes" || \
    test "${HAVE_BE_APP}" = "yes" || test "${window_system}" = "pgtk" || \
+   test "${window_system}" = "qt" || \
    test "${REALLY_ANDROID}" = "yes"; then
   if test "${with_imagemagick}" != "no"; then
     if test -n "$BREW"; then
@@ -3872,6 +3887,60 @@ fi
 CFLAGS=$OLD_CFLAGS
 LIBS=$OLD_LIBS
 
+
+if test "${with_qt}" != "no"; then
+   QT_MAJOR_VERSION=6
+   # FIXME: determine the lowest Qt version later
+   QT_REQUIRED=6.8
+
+   # FIXME: adjust to contain the required  Qt modules
+   #        later. Have to find out which are required
+   #        besides core and widgets
+   QT_MODULES="Qt${QT_MAJOR_VERSION}Core >= $QT_REQUIRED Qt${QT_MAJOR_VERSION}Widgets"
+
+   # FIXME: Fail if Qt Hostpath can't be found, unlikely but possible.
+
+   dnl Check for libraries
+   EMACS_CHECK_MODULES([QT], [$QT_MODULES],
+    [pkg_check_qt=yes], [pkg_check_qt=no])
+
+   EMACS_QT_CHECK_PROG([moc], [Qt Meta Object compiler],
+            [if test "$with_qt" = "yes"; then
+               AC_MSG_ERROR(m4_format(["Qt requested but required tool %s not found"],
+               desc))
+            else
+               AC_MSG_WARN(m4_format(["Qt requested but required tool %s not found"],
+                           desc))
+            fi])
+
+   if test "$pkg_check_qt" = "no" && test "$with_qt" = "yes"; then
+      AC_MSG_ERROR([$QT_PKG_ERRORS])
+   fi
+   if test "$pkg_check_qt" = "yes"; then
+      AC_DEFINE([HAVE_QT], [1], [Define to 1 if using Qt.])
+      HAVE_QT=yes
+
+      CFLAGS="$CFLAGS $QT_CFLAGS"
+      LIBS="$QT_LIBS $LIBS"
+
+      # FIXME: Use ax_have_qt for Qt CXXFLAGS
+      # there isn't a reliable way beyond parsing qtmake spec configs
+      # or calling cmake/qmake as that autoconf script does
+   fi
+
+  dnl FIXME Qt image apis test here
+  dnl if test "${with_native_image_api}" = yes; then
+  dnl    AC_DEFINE([HAVE_NATIVE_IMAGE_API], [1],
+  dnl      [Define to use native OS APIs for images.])
+  dnl    NATIVE_IMAGE_API="yes (haiku)"
+  dnl    HAIKU_OBJ="$HAIKU_OBJ haikuimage.o"
+  dnl fi
+
+fi
+AC_SUBST([QT_LIBS])
+AC_SUBST([QT_MOC])
+AC_SUBST([QT_CFLAGS])
+
 PGTK_OBJ=
 PGTK_LIBS=
 if test "$window_system" = "pgtk"; then
@@ -3880,6 +3949,20 @@ if test "$window_system" = "pgtk"; then
 fi
 AC_SUBST([PGTK_OBJ])
 AC_SUBST([PGTK_LIBS])
+
+
+QT_OBJ=
+QT_CXX_OBJ=
+if test "$window_system" = "qt"; then
+
+QT_OBJ="qtfns.o qtterm.o qtselect.o qtmenu.o"
+  QT_CXX_OBJ="qt_support.o qt_font_support.o qt_draw_support.o qt_select.o"
+
+fi
+AC_SUBST([QT_OBJ])
+AC_SUBST([QT_CXX_OBJ])
+
+
 
 AC_CHECK_FUNCS([malloc_trim])
 
@@ -3977,7 +4060,8 @@ AC_SUBST([SETTINGS_CFLAGS])
 AC_SUBST([SETTINGS_LIBS])
 
 USE_STARTUP_NOTIFICATION=no
-if test "${HAVE_GTK}" = "yes"; then
+if test "${HAVE_GTK}" = "yes" || \
+   test "${HAVE_QT}" = "yes"; then
     USE_STARTUP_NOTIFICATION=yes
 fi
 AC_SUBST([USE_STARTUP_NOTIFICATION])
@@ -4341,6 +4425,9 @@ if test "${with_toolkit_scroll_bars}" != "no"; then
       USE_TOOLKIT_SCROLL_BARS=yes
     fi
   elif test "${HAVE_GTK}" = "yes"; then
+    AC_DEFINE([USE_TOOLKIT_SCROLL_BARS])
+    USE_TOOLKIT_SCROLL_BARS=yes
+  elif test "${HAVE_QT}" = "yes"; then
     AC_DEFINE([USE_TOOLKIT_SCROLL_BARS])
     USE_TOOLKIT_SCROLL_BARS=yes
   elif test "${HAVE_NS}" = "yes"; then
@@ -4888,6 +4975,7 @@ JPEG_CFLAGS=
 if test "${HAVE_X11}" = "yes" || test "${HAVE_W32}" = "yes" \
    || test "${HAVE_NS}" = "yes" || test "${HAVE_BE_APP}" = "yes" \
    || test "$window_system" = "pgtk" \
+   || test "$window_system" = "qt" \
    || test "${REALLY_ANDROID}" = "yes"; then
   if test "${with_jpeg}" != "no"; then
     if test "${REALLY_ANDROID}" = "yes"; then
@@ -5310,6 +5398,7 @@ if test "${with_png}" != no; then
   elif test "${HAVE_X11}" = "yes" || test "${HAVE_W32}" = "yes" \
        || test "${HAVE_NS}" = "yes" || test "${HAVE_BE_APP}" = "yes" \
        || test "$window_system" = "pgtk" \
+       || test "$window_system" = "qt" \
        || test "${REALLY_ANDROID}" = "yes"; then
     EMACS_CHECK_MODULES([PNG], [libpng >= 1.0.0])
     if test $HAVE_PNG = yes; then
@@ -5389,6 +5478,7 @@ if test "${opsys}" = "mingw32"; then
 elif test "${HAVE_X11}" = "yes" || test "${HAVE_W32}" = "yes" \
      || test "${HAVE_NS}" = "yes" || test "${HAVE_BE_APP}" = "yes" \
      || test "$window_system" = "pgtk" \
+     || test "$window_system" = "qt" \
      || test "${REALLY_ANDROID}" = "yes"; then
   if test "${with_tiff}" != "no"; then
     if test "${REALLY_ANDROID}" != "yes"; then
@@ -5436,6 +5526,7 @@ if test "${opsys}" = "mingw32"; then
 elif test "${HAVE_X11}" = "yes" && test "${with_gif}" != "no" \
         || test "${HAVE_W32}" = "yes" || test "${HAVE_NS}" = "yes" \
 	|| test "${HAVE_BE_APP}" = "yes" || test "$window_system" = "pgtk" \
+        || test "$window_system" = "qt" \
 	|| test "${REALLY_ANDROID}" = "yes" \
 	&& test "${with_gif}" != "no"; then
   AC_CHECK_HEADER([gif_lib.h],
